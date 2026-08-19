@@ -1,6 +1,7 @@
 {
   "name": "kedo-discord-bot",
   "version": "1.0.0",
+  "description": "Kedo Discord Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
