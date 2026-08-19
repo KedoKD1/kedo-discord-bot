@@ -1,4 +1,10 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
+const {
+  Client,
+  GatewayIntentBits,
+  REST,
+  Routes,
+  SlashCommandBuilder
+} = require("discord.js");
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -10,12 +16,13 @@ const commands = [
     .setDescription("Check if the bot is online")
 ].map(command => command.toJSON());
 
-const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
-
-client.once("ready", async () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
+client.once("clientReady", async () => {
+  console.log(`✅ Bot online as ${client.user.tag}`);
 
   try {
+    const rest = new REST({ version: "10" })
+      .setToken(process.env.DISCORD_TOKEN);
+
     await rest.put(
       Routes.applicationCommands(client.user.id),
       { body: commands }
@@ -23,7 +30,7 @@ client.once("ready", async () => {
 
     console.log("✅ Slash commands registered!");
   } catch (error) {
-    console.error(error);
+    console.error("❌ Failed to register commands:", error);
   }
 });
 
