@@ -25,10 +25,6 @@ const commands = [
     .setDescription("Check if the bot is online")
 ].map(command => command.toJSON());
 
-client.on("error", (error) => {
-  console.error("❌ Discord client error:", error.message);
-});
-
 client.once("clientReady", async () => {
   console.log(`✅ Bot online as ${client.user.tag}`);
 
@@ -46,20 +42,22 @@ client.once("clientReady", async () => {
   }
 });
 
+// استقبال الأوامر
+client.on("interactionCreate", async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === "ping") {
+    await interaction.reply("Pong! 🏓");
+  }
+});
+
 console.log("🔄 Connecting to Discord...");
 
 client.login(token)
   .then(() => {
     console.log("🔐 Discord login successful!");
   })
-  .catch((error) => {
+  .catch(error => {
     console.error("❌ Discord login failed:", error.message);
     process.exit(1);
   });
-
-setTimeout(() => {
-  if (!client.isReady()) {
-    console.error("⏱️ Discord connection timed out after 30 seconds.");
-    process.exit(1);
-  }
-}, 30000);
