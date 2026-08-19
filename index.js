@@ -66,7 +66,6 @@ async function saveUser(interaction, language) {
   const discordId = interaction.user.id;
   const username = interaction.user.username;
 
-  // Check if user already exists
   const { data: existingUser, error: findError } = await supabase
     .from('users')
     .select('id')
@@ -81,7 +80,6 @@ async function saveUser(interaction, language) {
     return;
   }
 
-  // User exists → update
   if (existingUser && existingUser.length > 0) {
 
     const { error } = await supabase
@@ -106,7 +104,6 @@ async function saveUser(interaction, language) {
     return;
   }
 
-  // User doesn't exist → insert
   const { error } = await supabase
     .from('users')
     .insert({
@@ -135,12 +132,10 @@ async function getLanguage(interaction) {
 
   const userId = interaction.user.id;
 
-  // If language is already cached
   if (userLanguages.has(userId)) {
     return userLanguages.get(userId);
   }
 
-  // Check Supabase
   const { data, error } = await supabase
     .from('users')
     .select('language')
@@ -158,7 +153,6 @@ async function getLanguage(interaction) {
     return language;
   }
 
-  // First time user → use Discord language
   const locale = interaction.locale || "en-US";
 
   const language = locale
@@ -169,7 +163,6 @@ async function getLanguage(interaction) {
 
   userLanguages.set(userId, language);
 
-  // Save first-time user
   await saveUser(interaction, language);
 
   return language;
@@ -180,6 +173,7 @@ async function getLanguage(interaction) {
 // ====================
 
 const commands = [
+
   new SlashCommandBuilder()
     .setName("ping")
     .setDescription("Show the bot's system status"),
@@ -191,6 +185,23 @@ const commands = [
   new SlashCommandBuilder()
     .setName("language")
     .setDescription("Change your language")
+    .addStringOption(option =>
+      option
+        .setName("language")
+        .setDescription("Choose your language")
+        .setRequired(true)
+        .addChoices(
+          {
+            name: "🇮🇶 العربية",
+            value: "ar"
+          },
+          {
+            name: "🇬🇧 English",
+            value: "en"
+          }
+        )
+    )
+
 ].map(command => command.toJSON());
 
 // ====================
@@ -241,10 +252,6 @@ function formatUptime(seconds, language) {
 // ====================
 
 function createHelpEmbed(section, language) {
-
-  // ====================
-  // Arabic
-  // ====================
 
   if (language === "ar") {
 
@@ -349,10 +356,6 @@ function createHelpEmbed(section, language) {
         });
     }
   }
-
-  // ====================
-  // English
-  // ====================
 
   if (section === "home") {
 
@@ -535,98 +538,6 @@ function createHelpButtons(language) {
 }
 
 // ====================
-// Language Buttons
-// ====================
-
-function createLanguageButtons(language) {
-
-  if (language === "ar") {
-
-    return new ActionRowBuilder().addComponents(
-
-      new ButtonBuilder()
-        .setCustomId("language_ar")
-        .setLabel("العربية")
-        .setEmoji("🇮🇶")
-        .setStyle(ButtonStyle.Success),
-
-      new ButtonBuilder()
-        .setCustomId("language_en")
-        .setLabel("English")
-        .setEmoji("🇬🇧")
-        .setStyle(ButtonStyle.Secondary)
-
-    );
-  }
-
-  return new ActionRowBuilder().addComponents(
-
-    new ButtonBuilder()
-      .setCustomId("language_ar")
-      .setLabel("العربية")
-      .setEmoji("🇮🇶")
-      .setStyle(ButtonStyle.Secondary),
-
-    new ButtonBuilder()
-      .setCustomId("language_en")
-      .setLabel("English")
-      .setEmoji("🇬🇧")
-      .setStyle(ButtonStyle.Success)
-
-  );
-}
-
-// ====================
-// Language Embed
-// ====================
-
-function createLanguageEmbed(language) {
-
-  if (language === "ar") {
-
-    return new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setTitle("🌐 لغة KDBot")
-      .setDescription(
-        "اختر اللغة التي تريد استخدامها مع البوت:"
-      )
-      .addFields({
-        name: "🇮🇶 العربية",
-        value: "سيظهر لك البوت باللغة العربية.",
-        inline: false
-      })
-      .addFields({
-        name: "🇬🇧 English",
-        value: "سيظهر لك البوت باللغة الإنجليزية.",
-        inline: false
-      })
-      .setFooter({
-        text: "KDBot • Language"
-      });
-  }
-
-  return new EmbedBuilder()
-    .setColor(0x5865F2)
-    .setTitle("🌐 KDBot Language")
-    .setDescription(
-      "Choose the language you want to use with KDBot:"
-    )
-    .addFields({
-      name: "🇮🇶 العربية",
-      value: "KDBot will use Arabic for you.",
-      inline: false
-    })
-    .addFields({
-      name: "🇬🇧 English",
-      value: "KDBot will use English for you.",
-      inline: false
-    })
-    .setFooter({
-      text: "KDBot • Language"
-    });
-}
-
-// ====================
 // Ready
 // ====================
 
@@ -665,11 +576,50 @@ client.once("clientReady", async () => {
 
 client.on("interactionCreate", async interaction => {
 
-  // ====================
-  // Slash Commands
-  // ====================
-
   if (interaction.isChatInputCommand()) {
+
+    // ====================
+    // /language
+    // ====================
+
+    if (interaction.commandName === "language") {
+
+      const newLanguage =
+        interaction.options.getString("language");
+
+      userLanguages.set(
+        interaction.user.id,
+        newLanguage
+      );
+
+      await saveUser(
+        interaction,
+        newLanguage
+      );
+
+      if (newLanguage === "ar") {
+
+        await interaction.reply({
+          content:
+            "✅ تم تغيير لغة KDBot إلى **العربية** 🇮🇶",
+          ephemeral: true
+        });
+
+      } else {
+
+        await interaction.reply({
+          content:
+            "✅ KDBot language changed to **English** 🇬🇧",
+          ephemeral: true
+        });
+      }
+
+      return;
+    }
+
+    // ====================
+    // Get language
+    // ====================
 
     const language = await getLanguage(interaction);
 
@@ -806,108 +756,15 @@ client.on("interactionCreate", async interaction => {
 
       return;
     }
-
-    // ====================
-    // /language
-    // ====================
-
-    if (interaction.commandName === "language") {
-
-      await interaction.reply({
-        embeds: [
-          createLanguageEmbed(language)
-        ],
-        components: [
-          createLanguageButtons(language)
-        ],
-        ephemeral: true
-      });
-
-      return;
-    }
   }
 
   // ====================
-  // Buttons
+  // Help Buttons
   // ====================
 
   if (interaction.isButton()) {
 
     const id = interaction.customId;
-
-    // ====================
-    // Language Buttons
-    // ====================
-
-    if (
-      id === "language_ar" ||
-      id === "language_en"
-    ) {
-
-      const newLanguage =
-        id === "language_ar"
-          ? "ar"
-          : "en";
-
-      userLanguages.set(
-        interaction.user.id,
-        newLanguage
-      );
-
-      // Save selected language to Supabase
-      await saveUser(
-        interaction,
-        newLanguage
-      );
-
-      if (newLanguage === "ar") {
-
-        await interaction.update({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0x57F287)
-              .setTitle("✅ تم تغيير اللغة")
-              .setDescription(
-                "تم تعيين لغة KDBot إلى **العربية**.\n\n" +
-                "يمكنك الآن استخدام أوامر البوت باللغة العربية."
-              )
-              .setFooter({
-                text: "KDBot • Language"
-              })
-          ],
-          components: [
-            createLanguageButtons("ar")
-          ]
-        });
-
-      } else {
-
-        await interaction.update({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(0x57F287)
-              .setTitle("✅ Language Changed")
-              .setDescription(
-                "KDBot language has been set to **English**.\n\n" +
-                "You can now use KDBot in English."
-              )
-              .setFooter({
-                text: "KDBot • Language"
-              })
-          ],
-          components: [
-            createLanguageButtons("en")
-          ]
-        });
-
-      }
-
-      return;
-    }
-
-    // ====================
-    // Help Buttons
-    // ====================
 
     const sectionMap = {
       help_home: "home",
