@@ -34,4 +34,6 @@ client.once("clientReady", async () => {
   }
 });
 
+console.log("🔑 Token loaded:", !!process.env.DISCORD_TOKEN);
+
 client.login(process.env.DISCORD_TOKEN);
