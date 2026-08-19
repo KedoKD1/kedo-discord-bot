@@ -6,15 +6,23 @@ const supabase = createClient(
 );
 
 async function testSupabase() {
-  const { error } = await supabase
+  console.log('Supabase URL exists:', !!process.env.SUPABASE_URL);
+  console.log('Supabase Key exists:', !!process.env.SUPABASE_KEY);
+
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+    console.log('❌ Supabase environment variables are missing.');
+    return;
+  }
+
+  const { data, error } = await supabase
     .from('test')
-    .select('*')
+    .select('id')
     .limit(1);
 
   if (error) {
-    console.log('Supabase:', error.message);
+    console.log('❌ Supabase error:', error.message);
   } else {
-    console.log('Supabase: Connected successfully!');
+    console.log('✅ Supabase connected:', data);
   }
 }
 
