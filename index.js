@@ -5,6 +5,21 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
+async function testSupabase() {
+  const { error } = await supabase
+    .from('test')
+    .select('*')
+    .limit(1);
+
+  if (error) {
+    console.log('Supabase:', error.message);
+  } else {
+    console.log('Supabase: Connected successfully!');
+  }
+}
+
+testSupabase();
+
 const {
   Client,
   GatewayIntentBits,
