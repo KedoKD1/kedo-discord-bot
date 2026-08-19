@@ -18,11 +18,23 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
+// ====================
+// Slash Commands
+// ====================
+
 const commands = [
   new SlashCommandBuilder()
     .setName("ping")
-    .setDescription("Show the bot's system status")
+    .setDescription("Show the bot's system status"),
+
+  new SlashCommandBuilder()
+    .setName("help")
+    .setDescription("Show all available bot commands")
 ].map(command => command.toJSON());
+
+// ====================
+// Uptime
+// ====================
 
 function formatUptime(seconds) {
   const days = Math.floor(seconds / 86400);
@@ -44,6 +56,10 @@ function formatUptime(seconds) {
   return parts.join(" ");
 }
 
+// ====================
+// Bot Ready
+// ====================
+
 client.once("clientReady", async () => {
   console.log(`✅ Bot online as ${client.user.tag}`);
 
@@ -57,12 +73,23 @@ client.once("clientReady", async () => {
 
     console.log("✅ Slash commands registered!");
   } catch (error) {
-    console.error("❌ Command registration failed:", error.message);
+    console.error(
+      "❌ Command registration failed:",
+      error.message
+    );
   }
 });
 
+// ====================
+// Interactions
+// ====================
+
 client.on("interactionCreate", async interaction => {
   if (!interaction.isChatInputCommand()) return;
+
+  // ====================
+  // /ping
+  // ====================
 
   if (interaction.commandName === "ping") {
     const ping = Math.round(client.ws.ping);
@@ -123,13 +150,52 @@ client.on("interactionCreate", async interaction => {
       embeds: [embed]
     });
   }
+
+  // ====================
+  // /help
+  // ====================
+
+  if (interaction.commandName === "help") {
+    const embed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle("📖 KDBot Help")
+      .setDescription(
+        "مرحباً بك في **KDBot**!\n\n" +
+        "هذه قائمة الأوامر المتوفرة حاليًا:"
+      )
+      .addFields(
+        {
+          name: "ℹ️ Information",
+          value:
+            "`/ping` — فحص حالة البوت ومعلومات النظام\n" +
+            "`/help` — عرض قائمة الأوامر",
+          inline: false
+        }
+      )
+      .setFooter({
+        text: "KDBot • Help Menu"
+      })
+      .setTimestamp();
+
+    await interaction.reply({
+      embeds: [embed]
+    });
+  }
 });
+
+// ====================
+// Login
+// ====================
 
 client.login(token)
   .then(() => {
     console.log("🔐 Discord login successful!");
   })
   .catch(error => {
-    console.error("❌ Discord login failed:", error.message);
+    console.error(
+      "❌ Discord login failed:",
+      error.message
+    );
+
     process.exit(1);
   });
