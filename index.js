@@ -58,6 +58,124 @@ const client = new Client({
 const userLanguages = new Map();
 
 // ====================
+// Save User to Supabase
+// ====================
+
+async function saveUser(interaction, language) {
+
+  const discordId = interaction.user.id;
+  const username = interaction.user.username;
+
+  // Check if user already exists
+  const { data: existingUser, error: findError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('discord_id', discordId)
+    .limit(1);
+
+  if (findError) {
+    console.log(
+      '❌ Failed to find user:',
+      findError.message
+    );
+    return;
+  }
+
+  // User exists → update
+  if (existingUser && existingUser.length > 0) {
+
+    const { error } = await supabase
+      .from('users')
+      .update({
+        username: username,
+        language: language
+      })
+      .eq('discord_id', discordId);
+
+    if (error) {
+      console.log(
+        '❌ Failed to update user:',
+        error.message
+      );
+    } else {
+      console.log(
+        `✅ User updated: ${username}`
+      );
+    }
+
+    return;
+  }
+
+  // User doesn't exist → insert
+  const { error } = await supabase
+    .from('users')
+    .insert({
+      discord_id: discordId,
+      username: username,
+      language: language
+    });
+
+  if (error) {
+    console.log(
+      '❌ Failed to save user:',
+      error.message
+    );
+  } else {
+    console.log(
+      `✅ User saved: ${username}`
+    );
+  }
+}
+
+// ====================
+// Get User Language
+// ====================
+
+async function getLanguage(interaction) {
+
+  const userId = interaction.user.id;
+
+  // If language is already cached
+  if (userLanguages.has(userId)) {
+    return userLanguages.get(userId);
+  }
+
+  // Check Supabase
+  const { data, error } = await supabase
+    .from('users')
+    .select('language')
+    .eq('discord_id', userId)
+    .limit(1);
+
+  if (!error && data && data.length > 0) {
+
+    const language = data[0].language === "en"
+      ? "en"
+      : "ar";
+
+    userLanguages.set(userId, language);
+
+    return language;
+  }
+
+  // First time user → use Discord language
+  const locale = interaction.locale || "en-US";
+
+  const language = locale
+    .toLowerCase()
+    .startsWith("ar")
+    ? "ar"
+    : "en";
+
+  userLanguages.set(userId, language);
+
+  // Save first-time user
+  await saveUser(interaction, language);
+
+  return language;
+}
+
+// ====================
 // Slash Commands
 // ====================
 
@@ -74,25 +192,6 @@ const commands = [
     .setName("language")
     .setDescription("Change your language")
 ].map(command => command.toJSON());
-
-// ====================
-// Language
-// ====================
-
-function getLanguage(interaction) {
-
-  // إذا المستخدم اختار لغة بنفسه
-  if (userLanguages.has(interaction.user.id)) {
-    return userLanguages.get(interaction.user.id);
-  }
-
-  // اللغة الافتراضية من Discord
-  const locale = interaction.locale || "en-US";
-
-  return locale.toLowerCase().startsWith("ar")
-    ? "ar"
-    : "en";
-}
 
 // ====================
 // Uptime
@@ -572,7 +671,7 @@ client.on("interactionCreate", async interaction => {
 
   if (interaction.isChatInputCommand()) {
 
-    const language = getLanguage(interaction);
+    const language = await getLanguage(interaction);
 
     // ====================
     // /ping
@@ -729,7 +828,7 @@ client.on("interactionCreate", async interaction => {
   }
 
   // ====================
-  // Help Buttons
+  // Buttons
   // ====================
 
   if (interaction.isButton()) {
@@ -752,6 +851,12 @@ client.on("interactionCreate", async interaction => {
 
       userLanguages.set(
         interaction.user.id,
+        newLanguage
+      );
+
+      // Save selected language to Supabase
+      await saveUser(
+        interaction,
         newLanguage
       );
 
@@ -824,7 +929,7 @@ client.on("interactionCreate", async interaction => {
       interaction.user.id !== ownerId
     ) {
 
-      const language = getLanguage(interaction);
+      const language = await getLanguage(interaction);
 
       if (language === "ar") {
 
@@ -849,7 +954,7 @@ client.on("interactionCreate", async interaction => {
       return;
     }
 
-    const language = getLanguage(interaction);
+    const language = await getLanguage(interaction);
 
     await interaction.update({
       embeds: [
