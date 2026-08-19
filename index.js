@@ -5,6 +5,10 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
+// ====================
+// Supabase Test
+// ====================
+
 async function testSupabase() {
   console.log('Supabase URL exists:', !!process.env.SUPABASE_URL);
   console.log('Supabase Key exists:', !!process.env.SUPABASE_KEY);
@@ -27,6 +31,10 @@ async function testSupabase() {
 }
 
 testSupabase();
+
+// ====================
+// Discord
+// ====================
 
 const {
   Client,
@@ -52,13 +60,14 @@ const client = new Client({
 });
 
 // ====================
-// User Languages
+// Cache
 // ====================
 
 const userLanguages = new Map();
+const guildLanguages = new Map();
 
 // ====================
-// Save User to Supabase
+// Save User
 // ====================
 
 async function saveUser(interaction, language) {
@@ -125,6 +134,123 @@ async function saveUser(interaction, language) {
 }
 
 // ====================
+// Save Guild
+// ====================
+
+async function saveGuild(guild, language) {
+
+  if (!guild) return;
+
+  const guildId = guild.id;
+
+  const { data: existingGuild, error: findError } = await supabase
+    .from('guilds')
+    .select('id')
+    .eq('guild_id', guildId)
+    .limit(1);
+
+  if (findError) {
+    console.log(
+      '❌ Failed to find guild:',
+      findError.message
+    );
+    return;
+  }
+
+  if (existingGuild && existingGuild.length > 0) {
+
+    const { error } = await supabase
+      .from('guilds')
+      .update({
+        language: language
+      })
+      .eq('guild_id', guildId);
+
+    if (error) {
+      console.log(
+        '❌ Failed to update guild:',
+        error.message
+      );
+    } else {
+      console.log(
+        `✅ Guild updated: ${guild.name}`
+      );
+    }
+
+    return;
+  }
+
+  const { error } = await supabase
+    .from('guilds')
+    .insert({
+      guild_id: guildId,
+      language: language
+    });
+
+  if (error) {
+    console.log(
+      '❌ Failed to save guild:',
+      error.message
+    );
+  } else {
+    console.log(
+      `✅ Guild saved: ${guild.name}`
+    );
+  }
+}
+
+// ====================
+// Get Guild Language
+// ====================
+
+async function getGuildLanguage(interaction) {
+
+  if (!interaction.guild) {
+    return null;
+  }
+
+  const guildId = interaction.guild.id;
+
+  if (guildLanguages.has(guildId)) {
+    return guildLanguages.get(guildId);
+  }
+
+  const { data, error } = await supabase
+    .from('guilds')
+    .select('language')
+    .eq('guild_id', guildId)
+    .limit(1);
+
+  if (!error && data && data.length > 0) {
+
+    const language = data[0].language === "en"
+      ? "en"
+      : "ar";
+
+    guildLanguages.set(guildId, language);
+
+    return language;
+  }
+
+  const locale = interaction.guild.preferredLocale || "en-US";
+
+  const language = locale
+    .toLowerCase()
+    .startsWith("ar")
+    ? "ar"
+    : "en";
+
+  guildLanguages.set(guildId, language);
+
+  await saveGuild(
+    interaction.guild,
+    language
+  );
+
+  return language;
+}
+
+// ====================
 // Get User Language
 // ====================
 
@@ -148,22 +274,54 @@ async function getLanguage(interaction) {
       ? "en"
       : "ar";
 
-    userLanguages.set(userId, language);
+    userLanguages.set(
+      userId,
+      language
+    );
 
     return language;
   }
 
-  const locale = interaction.locale || "en-US";
+  // User has no personal language.
+  // Use server language first.
 
-  const language = locale
-    .toLowerCase()
-    .startsWith("ar")
-    ? "ar"
-    : "en";
+  const guildLanguage =
+    await getGuildLanguage(interaction);
 
-  userLanguages.set(userId, language);
+  if (guildLanguage) {
 
-  await saveUser(interaction, language);
+    userLanguages.set(
+      userId,
+      guildLanguage
+    );
+
+    await saveUser(
+      interaction,
+      guildLanguage
+    );
+
+    return guildLanguage;
+  }
+
+  // Fallback to Discord language
+
+  const locale =
+    interaction.locale || "en-US";
+
+  const language =
+    locale.toLowerCase().startsWith("ar")
+      ? "ar"
+      : "en";
+
+  userLanguages.set(
+    userId,
+    language
+  );
+
+  await saveUser(
+    interaction,
+    language
+  );
 
   return language;
 }
@@ -356,6 +514,10 @@ function createHelpEmbed(section, language) {
         });
     }
   }
+
+  // ====================
+  // English
+  // ====================
 
   if (section === "home") {
 
@@ -560,6 +722,17 @@ client.once("clientReady", async () => {
 
     console.log("✅ Slash commands registered!");
 
+    // Save all current guilds
+
+    for (const guild of client.guilds.cache.values()) {
+
+      await getGuildLanguage({
+        guild: guild,
+        user: client.user
+      });
+
+    }
+
   } catch (error) {
 
     console.error(
@@ -575,6 +748,10 @@ client.once("clientReady", async () => {
 // ====================
 
 client.on("interactionCreate", async interaction => {
+
+  // ====================
+  // Slash Commands
+  // ====================
 
   if (interaction.isChatInputCommand()) {
 
@@ -618,10 +795,11 @@ client.on("interactionCreate", async interaction => {
     }
 
     // ====================
-    // Get language
+    // Other Commands
     // ====================
 
-    const language = await getLanguage(interaction);
+    const language =
+      await getLanguage(interaction);
 
     // ====================
     // /ping
@@ -629,21 +807,27 @@ client.on("interactionCreate", async interaction => {
 
     if (interaction.commandName === "ping") {
 
-      const ping = Math.round(client.ws.ping);
+      const ping =
+        Math.round(client.ws.ping);
 
-      const servers = client.guilds.cache.size;
+      const servers =
+        client.guilds.cache.size;
 
-      const users = client.guilds.cache.reduce(
-        (total, guild) => total + guild.memberCount,
-        0
-      );
+      const users =
+        client.guilds.cache.reduce(
+          (total, guild) =>
+            total + guild.memberCount,
+          0
+        );
 
-      const uptime = formatUptime(
-        Math.floor(process.uptime()),
-        language
-      );
+      const uptime =
+        formatUptime(
+          Math.floor(process.uptime()),
+          language
+        );
 
-      const embed = new EmbedBuilder();
+      const embed =
+        new EmbedBuilder();
 
       if (language === "ar") {
 
@@ -664,7 +848,8 @@ client.on("interactionCreate", async interaction => {
             },
             {
               name: "👥 المستخدمون",
-              value: `\`${users.toLocaleString()}\``,
+              value:
+                `\`${users.toLocaleString()}\``,
               inline: true
             },
             {
@@ -684,7 +869,8 @@ client.on("interactionCreate", async interaction => {
             }
           )
           .setFooter({
-            text: "KDBot • حالة النظام"
+            text:
+              "KDBot • حالة النظام"
           })
           .setTimestamp();
 
@@ -707,7 +893,8 @@ client.on("interactionCreate", async interaction => {
             },
             {
               name: "👥 Users",
-              value: `\`${users.toLocaleString()}\``,
+              value:
+                `\`${users.toLocaleString()}\``,
               inline: true
             },
             {
@@ -727,7 +914,8 @@ client.on("interactionCreate", async interaction => {
             }
           )
           .setFooter({
-            text: "KDBot • System Status"
+            text:
+              "KDBot • System Status"
           })
           .setTimestamp();
       }
@@ -747,7 +935,10 @@ client.on("interactionCreate", async interaction => {
 
       await interaction.reply({
         embeds: [
-          createHelpEmbed("home", language)
+          createHelpEmbed(
+            "home",
+            language
+          )
         ],
         components: [
           createHelpButtons(language)
@@ -764,17 +955,21 @@ client.on("interactionCreate", async interaction => {
 
   if (interaction.isButton()) {
 
-    const id = interaction.customId;
+    const id =
+      interaction.customId;
 
     const sectionMap = {
+
       help_home: "home",
       help_info: "info",
       help_management: "management",
       help_fun: "fun",
       help_settings: "settings"
+
     };
 
-    const section = sectionMap[id];
+    const section =
+      sectionMap[id];
 
     if (!section) return;
 
@@ -786,7 +981,8 @@ client.on("interactionCreate", async interaction => {
       interaction.user.id !== ownerId
     ) {
 
-      const language = await getLanguage(interaction);
+      const language =
+        await getLanguage(interaction);
 
       if (language === "ar") {
 
@@ -811,15 +1007,22 @@ client.on("interactionCreate", async interaction => {
       return;
     }
 
-    const language = await getLanguage(interaction);
+    const language =
+      await getLanguage(interaction);
 
     await interaction.update({
+
       embeds: [
-        createHelpEmbed(section, language)
+        createHelpEmbed(
+          section,
+          language
+        )
       ],
+
       components: [
         createHelpButtons(language)
       ]
+
     });
   }
 
