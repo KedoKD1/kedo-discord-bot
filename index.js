@@ -16,6 +16,8 @@ const commands = [
     .setDescription("Check if the bot is online")
 ].map(command => command.toJSON());
 
+console.log("🔑 Token loaded:", !!process.env.DISCORD_TOKEN);
+
 client.once("clientReady", async () => {
   console.log(`✅ Bot online as ${client.user.tag}`);
 
@@ -30,10 +32,12 @@ client.once("clientReady", async () => {
 
     console.log("✅ Slash commands registered!");
   } catch (error) {
-    console.error("❌ Failed to register commands:", error);
+    console.error("❌ Failed to register commands:", error.message);
   }
 });
 
-console.log("🔑 Token loaded:", !!process.env.DISCORD_TOKEN);
-
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN)
+  .catch(error => {
+    console.error("❌ Discord login failed:", error.message);
+    process.exit(1);
+  });
