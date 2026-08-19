@@ -45,6 +45,7 @@ const supabase = createClient(
 
 console.log("Supabase URL exists:", !!SUPABASE_URL);
 console.log("Supabase Key exists:", !!SUPABASE_KEY);
+console.log("🚀 Starting Discord login...");
 
 // ==================================================
 // DISCORD
