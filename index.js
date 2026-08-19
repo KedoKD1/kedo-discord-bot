@@ -6,6 +6,15 @@ const {
   SlashCommandBuilder
 } = require("discord.js");
 
+const token = process.env.DISCORD_TOKEN;
+
+console.log("🔑 Token loaded:", !!token);
+
+if (!token) {
+  console.error("❌ DISCORD_TOKEN is missing!");
+  process.exit(1);
+}
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
@@ -16,14 +25,15 @@ const commands = [
     .setDescription("Check if the bot is online")
 ].map(command => command.toJSON());
 
-console.log("🔑 Token loaded:", !!process.env.DISCORD_TOKEN);
+client.on("error", (error) => {
+  console.error("❌ Discord client error:", error.message);
+});
 
 client.once("clientReady", async () => {
   console.log(`✅ Bot online as ${client.user.tag}`);
 
   try {
-    const rest = new REST({ version: "10" })
-      .setToken(process.env.DISCORD_TOKEN);
+    const rest = new REST({ version: "10" }).setToken(token);
 
     await rest.put(
       Routes.applicationCommands(client.user.id),
@@ -32,12 +42,24 @@ client.once("clientReady", async () => {
 
     console.log("✅ Slash commands registered!");
   } catch (error) {
-    console.error("❌ Failed to register commands:", error.message);
+    console.error("❌ Command registration failed:", error.message);
   }
 });
 
-client.login(process.env.DISCORD_TOKEN)
-  .catch(error => {
+console.log("🔄 Connecting to Discord...");
+
+client.login(token)
+  .then(() => {
+    console.log("🔐 Discord login successful!");
+  })
+  .catch((error) => {
     console.error("❌ Discord login failed:", error.message);
     process.exit(1);
   });
+
+setTimeout(() => {
+  if (!client.isReady()) {
+    console.error("⏱️ Discord connection timed out after 30 seconds.");
+    process.exit(1);
+  }
+}, 30000);
