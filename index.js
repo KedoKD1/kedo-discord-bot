@@ -1946,9 +1946,14 @@ client.on(
 // LOGIN
 // ==================================================
 
-client.login(
-  DISCORD_TOKEN
-)
+client.login(DISCORD_TOKEN)
+  .then(() => {
+    console.log("🔐 Discord login successful!");
+  })
+  .catch(error => {
+    console.error("❌ Discord login failed:", error);
+    process.exit(1);
+  });
 .then(() => {
 
   console.log(
