@@ -1751,14 +1751,25 @@ client.on(
 
 console.log("🔑 Token loaded:", !!DISCORD_TOKEN);
 console.log("🔑 Token length:", DISCORD_TOKEN ? DISCORD_TOKEN.length : 0);
-console.log("🚀 Attempting Discord login...");
 
-client.login(DISCORD_TOKEN)
+console.log("🌐 Testing Discord API connection...");
+
+fetch("https://discord.com/api/v10/gateway")
+  .then(async response => {
+    console.log("🌐 Discord API status:", response.status);
+
+    const text = await response.text();
+    console.log("🌐 Discord API response:", text);
+
+    console.log("🚀 Attempting Discord login...");
+
+    return client.login(DISCORD_TOKEN);
+  })
   .then(() => {
     console.log("🔐 Discord login successful!");
   })
   .catch(error => {
-    console.error("❌ Discord login failed:");
+    console.error("❌ Discord connection/login failed:");
     console.error(error);
     process.exit(1);
   });
