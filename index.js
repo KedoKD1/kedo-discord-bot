@@ -1992,12 +1992,14 @@ if (interaction.commandName === "warnings") {
     })
     .setTimestamp();
 
-  await interaction.reply({
+    await interaction.reply({
     embeds: [embed]
   });
 
   return;
-}
+  }
+);
+
 // ==================================================
 // LOGIN
 // ==================================================
