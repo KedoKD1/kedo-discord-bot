@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>KDBot Dashboard</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+      background:
+        radial-gradient(
+          circle at top,
+          #20264a,
+          #0b0d14 55%
+        );
+
+      color: white;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+
+      background: rgba(20, 23, 35, 0.92);
+
+      border: 1px solid
+        rgba(255,255,255,0.08);
+
+      border-radius: 24px;
+
+      padding: 45px 30px;
+
+      text-align: center;
+
+      box-shadow:
+        0 25px 80px
+        rgba(0,0,0,0.45);
+    }
+
+    .logo {
+      width: 90px;
+      height: 90px;
+
+      margin: 0 auto 25px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      border-radius: 24px;
+
+      background: #5865f2;
+
+      font-size: 28px;
+      font-weight: 900;
+
+      box-shadow:
+        0 15px 40px
+        rgba(88,101,242,0.35);
+    }
+
+    .badge {
+      display: inline-block;
+
+      color: #8f9bb3;
+
+      font-size: 12px;
+
+      letter-spacing: 4px;
+
+      font-weight: bold;
+
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+
+      font-size: 42px;
+
+      line-height: 1.1;
+    }
+
+    .description {
+      margin:
+        18px auto 30px;
+
+      max-width: 400px;
+
+      color: #a8afc1;
+
+      line-height: 1.6;
+    }
+
+    .login {
+      display: inline-flex;
+
+      align-items: center;
+      justify-content: center;
+
+      gap: 10px;
+
+      width: 100%;
+
+      max-width: 320px;
+
+      padding: 15px 22px;
+
+      border-radius: 12px;
+
+      background: #5865f2;
+
+      color: white;
+
+      text-decoration: none;
+
+      font-size: 16px;
+
+      font-weight: bold;
+
+      transition:
+        transform .2s,
+        background .2s;
+    }
+
+    .login:hover {
+      background: #4752c4;
+
+      transform:
+        translateY(-2px);
+    }
+
+    .discord {
+      font-size: 22px;
+    }
+
+    .footer {
+      margin-top: 28px;
+
+      color: #697286;
+
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="container">
+
+    <div class="logo">
+      KD
+    </div>
+
+    <div class="badge">
+      KDBOT
+    </div>
+
+    <h1>
+      Dashboard
+    </h1>
+
+    <p class="description">
+      Manage your Discord servers,
+      moderation, warnings and
+      settings from one place.
+    </p>
+
+    <a
+      class="login"
+      href="/auth/discord"
+    >
+      <span class="discord">
+        💬
+      </span>
+
+      Login with Discord
+    </a>
+
+    <div class="footer">
+      KDBot Dashboard • v1.0.0
+    </div>
+
+  </main>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>KDBot Dashboard</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+      background:
+        radial-gradient(
+          circle at top,
+          #20264a,
+          #0b0d14 55%
+        );
+
+      color: white;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+
+      background: rgba(20, 23, 35, 0.92);
+
+      border: 1px solid
+        rgba(255,255,255,0.08);
+
+      border-radius: 24px;
+
+      padding: 45px 30px;
+
+      text-align: center;
+
+      box-shadow:
+        0 25px 80px
+        rgba(0,0,0,0.45);
+    }
+
+    .logo {
+      width: 90px;
+      height: 90px;
+
+      margin: 0 auto 25px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      border-radius: 24px;
+
+      background: #5865f2;
+
+      font-size: 28px;
+      font-weight: 900;
+
+      box-shadow:
+        0 15px 40px
+        rgba(88,101,242,0.35);
+    }
+
+    .badge {
+      display: inline-block;
+
+      color: #8f9bb3;
+
+      font-size: 12px;
+
+      letter-spacing: 4px;
+
+      font-weight: bold;
+
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+
+      font-size: 42px;
+
+      line-height: 1.1;
+    }
+
+    .description {
+      margin:
+        18px auto 30px;
+
+      max-width: 400px;
+
+      color: #a8afc1;
+
+      line-height: 1.6;
+    }
+
+    .login {
+      display: inline-flex;
+
+      align-items: center;
+      justify-content: center;
+
+      gap: 10px;
+
+      width: 100%;
+
+      max-width: 320px;
+
+      padding: 15px 22px;
+
+      border-radius: 12px;
+
+      background: #5865f2;
+
+      color: white;
+
+      text-decoration: none;
+
+      font-size: 16px;
+
+      font-weight: bold;
+
+      transition:
+        transform .2s,
+        background .2s;
+    }
+
+    .login:hover {
+      background: #4752c4;
+
+      transform:
+        translateY(-2px);
+    }
+
+    .discord {
+      font-size: 22px;
+    }
+
+    .footer {
+      margin-top: 28px;
+
+      color: #697286;
+
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="container">
+
+    <div class="logo">
+      KD
+    </div>
+
+    <div class="badge">
+      KDBOT
+    </div>
+
+    <h1>
+      Dashboard
+    </h1>
+
+    <p class="description">
+      Manage your Discord servers,
+      moderation, warnings and
+      settings from one place.
+    </p>
+
+    <a
+      class="login"
+      href="/auth/discord"
+    >
+      <span class="discord">
+        💬
+      </span>
+
+      Login with Discord
+    </a>
+
+    <div class="footer">
+      KDBot Dashboard • v1.0.0
+    </div>
+
+  </main>
+
+</body>
+</html>
