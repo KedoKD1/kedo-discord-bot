@@ -1748,18 +1748,24 @@ client.on(
 // ==================================================
 // LOGIN
 // ==================================================
-client.login(
-  DISCORD_TOKEN
-)
+
+console.log("🔑 Token loaded:", !!DISCORD_TOKEN);
+console.log("🚀 Attempting Discord login...");
+
+client.login(DISCORD_TOKEN)
   .then(() => {
-    console.log(
-      "🔐 Discord login successful!"
-    );
+    console.log("🔐 Discord login successful!");
   })
   .catch(error => {
     console.error(
       "❌ Discord login failed:",
-      error.message
+      error
     );
-    process.exit(1);
   });
+
+setTimeout(() => {
+  console.error(
+    "⏰ Discord login timeout — no response after 30 seconds."
+  );
+  process.exit(1);
+}, 30000);
