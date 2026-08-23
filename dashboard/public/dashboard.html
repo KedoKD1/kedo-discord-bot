@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>KDBot • Dashboard</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0b0d14;
+      color: #f5f7fb;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .topbar {
+      height: 70px;
+      padding: 0 24px;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      background: #11141d;
+      border-bottom: 1px solid #252a36;
+    }
+
+    .brand {
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .account {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #5865f2;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      font-weight: bold;
+    }
+
+    .logout {
+      border: 0;
+      border-radius: 10px;
+
+      padding: 9px 14px;
+
+      background: #242936;
+      color: white;
+
+      cursor: pointer;
+    }
+
+    .logout:hover {
+      background: #303646;
+    }
+
+    main {
+      max-width: 1150px;
+      margin: auto;
+      padding: 45px 24px;
+    }
+
+    .welcome {
+      margin-bottom: 30px;
+    }
+
+    .welcome small {
+      color: #7f899e;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .welcome h1 {
+      margin: 8px 0;
+      font-size: 38px;
+    }
+
+    .welcome p {
+      margin: 0;
+      color: #8f98aa;
+    }
+
+    .servers {
+      display: grid;
+
+      grid-template-columns:
+        repeat(
+          auto-fill,
+          minmax(240px, 1fr)
+        );
+
+      gap: 18px;
+    }
+
+    .server {
+      background: #131720;
+
+      border: 1px solid #252a36;
+
+      border-radius: 18px;
+
+      padding: 22px;
+
+      transition:
+        transform .2s,
+        border .2s;
+    }
+
+    .server:hover {
+      transform: translateY(-3px);
+      border-color: #5865f2;
+    }
+
+    .server-icon {
+      width: 55px;
+      height: 55px;
+
+      border-radius: 16px;
+
+      background: #5865f2;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      font-weight: 900;
+      font-size: 20px;
+
+      margin-bottom: 15px;
+    }
+
+    .server h2 {
+      margin: 0 0 7px;
+      font-size: 19px;
+    }
+
+    .server p {
+      margin: 0 0 18px;
+
+      color: #727c91;
+
+      font-size: 12px;
+    }
+
+    .open {
+      width: 100%;
+
+      padding: 11px;
+
+      border: 0;
+      border-radius: 10px;
+
+      background: #5865f2;
+      color: white;
+
+      font-weight: bold;
+
+      cursor: pointer;
+    }
+
+    .open:hover {
+      background: #4752c4;
+    }
+
+    .empty {
+      padding: 35px;
+
+      border-radius: 18px;
+
+      background: #131720;
+
+      border: 1px solid #252a36;
+
+      text-align: center;
+
+      color: #8f98aa;
+    }
+
+    .loading {
+      color: #8f98aa;
+    }
+
+    @media (max-width: 600px) {
+      .topbar {
+        padding: 0 15px;
+      }
+
+      .account span {
+        display: none;
+      }
+
+      main {
+        padding: 30px 16px;
+      }
+
+      .welcome h1 {
+        font-size: 30px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="topbar">
+
+    <div class="brand">
+      🤖 KDBot
+    </div>
+
+    <div class="account">
+
+      <div
+        id="avatar"
+        class="avatar"
+      >
+        ?
+      </div>
+
+      <span id="username">
+        Loading...
+      </span>
+
+      <button
+        id="logout"
+        class="logout"
+      >
+        Logout
+      </button>
+
+    </div>
+
+  </header>
+
+  <main>
+
+    <section class="welcome">
+
+      <small>
+        KDBOT DASHBOARD
+      </small>
+
+      <h1 id="welcome">
+        Welcome
+      </h1>
+
+      <p>
+        Select a Discord server to manage.
+      </p>
+
+    </section>
+
+    <section
+      id="servers"
+      class="servers"
+    >
+
+      <div class="loading">
+        Loading your servers...
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+
+    async function loadDashboard() {
+
+      try {
+
+        const response =
+          await fetch("/api/me");
+
+        if (!response.ok) {
+
+          window.location.href = "/";
+
+          return;
+        }
+
+        const data =
+          await response.json();
+
+        const user =
+          data.user;
+
+        const displayName =
+          user.global_name ||
+          user.username;
+
+        document
+          .getElementById("username")
+          .textContent =
+          displayName;
+
+        document
+          .getElementById("welcome")
+          .textContent =
+          `Welcome, ${displayName}`;
+
+        const avatar =
+          document
+            .getElementById("avatar");
+
+        avatar.textContent =
+          displayName
+            .charAt(0)
+            .toUpperCase();
+
+        const servers =
+          document
+            .getElementById("servers");
+
+        const manageable =
+          (data.guilds || [])
+            .filter(guild => {
+
+              const permissions =
+                BigInt(
+                  guild.permissions || "0"
+                );
+
+              const ADMINISTRATOR =
+                1n << 3n;
+
+              const MANAGE_GUILD =
+                1n << 5n;
+
+              return (
+                (permissions &
+                  ADMINISTRATOR) !== 0n ||
+
+                (permissions &
+                  MANAGE_GUILD) !== 0n
+              );
+
+            });
+
+        if (!manageable.length) {
+
+          servers.innerHTML = `
+            <div class="empty">
+              You don't have permission
+              to manage any servers.
+            </div>
+          `;
+
+          return;
+        }
+
+        servers.innerHTML =
+          manageable
+            .map(guild => {
+
+              const initial =
+                guild.name
+                  .charAt(0)
+                  .toUpperCase();
+
+              return `
+
+                <article
+                  class="server"
+                >
+
+                  <div
+                    class="server-icon"
+                  >
+                    ${initial}
+                  </div>
+
+                  <h2>
+                    ${escapeHtml(
+                      guild.name
+                    )}
+                  </h2>
+
+                  <p>
+                    ID:
+                    ${guild.id}
+                  </p>
+
+                  <button
+                    class="open"
+                    onclick="openServer('${guild.id}')"
+                  >
+                    Open Dashboard
+                  </button>
+
+                </article>
+
+              `;
+
+            })
+            .join("");
+
+      } catch (error) {
+
+        console.error(error);
+
+        document
+          .getElementById("servers")
+          .innerHTML = `
+            <div class="empty">
+              Failed to load servers.
+            </div>
+          `;
+
+      }
+
+    }
+
+    function escapeHtml(value) {
+
+      return String(value)
+
+        .replaceAll(
+          "&",
+          "&amp;"
+        )
+
+        .replaceAll(
+          "<",
+          "&lt;"
+        )
+
+        .replaceAll(
+          ">",
+          "&gt;"
+        )
+
+        .replaceAll(
+          '"',
+          "&quot;"
+        )
+
+        .replaceAll(
+          "'",
+          "&#039;"
+        );
+
+    }
+
+    function openServer(id) {
+
+      window.location.href =
+        `/server.html?id=${encodeURIComponent(id)}`;
+
+    }
+
+    document
+      .getElementById("logout")
+      .addEventListener(
+        "click",
+        async () => {
+
+          await fetch(
+            "/auth/logout",
+            {
+              method: "POST"
+            }
+          );
+
+          window.location.href = "/";
+
+        }
+      );
+
+    loadDashboard();
+
+  </script>
+
+</body>
+</html>
