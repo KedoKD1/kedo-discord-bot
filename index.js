@@ -1750,27 +1750,15 @@ client.on(
 // ==================================================
 
 console.log("🔑 Token loaded:", !!DISCORD_TOKEN);
+console.log("🔑 Token length:", DISCORD_TOKEN ? DISCORD_TOKEN.length : 0);
 console.log("🚀 Attempting Discord login...");
-
-const loginTimeout = setTimeout(() => {
-  console.error(
-    "⏰ Discord login timeout — no response after 30 seconds."
-  );
-  process.exit(1);
-}, 30000);
 
 client.login(DISCORD_TOKEN)
   .then(() => {
-    clearTimeout(loginTimeout);
     console.log("🔐 Discord login successful!");
   })
   .catch(error => {
-    clearTimeout(loginTimeout);
-
-    console.error(
-      "❌ Discord login failed:",
-      error.message
-    );
-
+    console.error("❌ Discord login failed:");
+    console.error(error);
     process.exit(1);
   });
