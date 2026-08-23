@@ -1687,261 +1687,317 @@ client.on(
       return;
     }
 
-    // ==================================================
-    // WARN
-    // ==================================================
+// ==================================================
+// WARN
+// ==================================================
 
-    if (
-      interaction.commandName ===
-      "warn"
-    ) {
+if (interaction.commandName === "warn") {
+  const user = interaction.options.getUser("user");
 
-      const user =
-        interaction.options.getUser(
-          "user"
-        );
+  const reason =
+    interaction.options.getString("reason") ||
+    (language === "ar" ? "بدون سبب" : "No reason provided");
 
-      const reason =
-        interaction.options.getString(
-          "reason"
-        ) ||
-        (
-          language === "ar"
-            ? "بدون سبب"
-            : "No reason provided"
-        );
+  // Get current warning count
+  const { data: existingWarnings, error: countError } =
+    await supabase
+      .from("warnings")
+      .select("id")
+      .eq("guild_id", interaction.guild.id)
+      .eq("user_id", user.id);
 
-      const { error } =
-        await supabase
-          .from("warnings")
-          .insert({
-            guild_id:
-              interaction.guild.id,
-            user_id:
-              user.id,
-            username:
-              user.username,
-            reason,
-            moderator_id:
-              interaction.user.id
-          });
+  if (countError) {
+    console.log("❌ Warning count:", countError.message);
 
-      if (error) {
+    await interaction.reply({
+      content:
+        language === "ar"
+          ? "❌ حدث خطأ أثناء جلب عدد التحذيرات."
+          : "❌ An error occurred while checking warnings.",
+      ephemeral: true
+    });
 
-        console.log(
-          "❌ Warning save:",
-          error.message
-        );
-
-        await interaction.reply({
-          content:
-            language === "ar"
-              ? "❌ لم أتمكن من حفظ التحذير."
-              : "❌ I couldn't save the warning.",
-          ephemeral: true
-        });
-
-        return;
-      }
-
-      await interaction.reply({
-        content:
-          language === "ar"
-            ? `⚠️ تم تحذير **${user.tag}**.\n📝 السبب: ${reason}`
-            : `⚠️ **${user.tag}** has been warned.\n📝 Reason: ${reason}`
-      });
-
-      return;
-    }
-
-    // ==================================================
-    // UNWARN
-    // ==================================================
-
-    if (
-      interaction.commandName ===
-      "unwarn"
-    ) {
-
-      const user =
-        interaction.options.getUser(
-          "user"
-        );
-
-      const { data, error } =
-        await supabase
-          .from("warnings")
-          .select("id")
-          .eq(
-            "guild_id",
-            interaction.guild.id
-          )
-          .eq(
-            "user_id",
-            user.id
-          )
-          .order(
-            "created_at",
-            {
-              ascending: false
-            }
-          )
-          .limit(1);
-
-      if (
-        error ||
-        !data ||
-        data.length === 0
-      ) {
-
-        await interaction.reply({
-          content:
-            language === "ar"
-              ? "❌ هذا العضو لا يملك تحذيرات."
-              : "❌ This member has no warnings.",
-          ephemeral: true
-        });
-
-        return;
-      }
-
-      const { error: deleteError } =
-        await supabase
-          .from("warnings")
-          .delete()
-          .eq(
-            "id",
-            data[0].id
-          );
-
-      if (deleteError) {
-
-        await interaction.reply({
-          content:
-            language === "ar"
-              ? "❌ لم أتمكن من إزالة التحذير."
-              : "❌ I couldn't remove the warning.",
-          ephemeral: true
-        });
-
-        return;
-      }
-
-      await interaction.reply({
-        content:
-          language === "ar"
-            ? `✅ تمت إزالة آخر تحذير عن **${user.tag}**.`
-            : `✅ The latest warning for **${user.tag}** was removed.`
-      });
-
-      return;
-    }
-
-    // ==================================================
-    // WARNINGS
-    // ==================================================
-
-    if (
-      interaction.commandName ===
-      "warnings"
-    ) {
-
-      const { data, error } =
-        await supabase
-          .from("warnings")
-          .select(
-            "user_id, username"
-          )
-          .eq(
-            "guild_id",
-            interaction.guild.id
-          );
-
-      if (error) {
-
-        console.log(
-          "❌ Warnings:",
-          error.message
-        );
-
-        await interaction.reply({
-          content:
-            language === "ar"
-              ? "❌ لم أتمكن من جلب التحذيرات."
-              : "❌ I couldn't load the warnings.",
-          ephemeral: true
-        });
-
-        return;
-      }
-
-      if (!data || data.length === 0) {
-
-        await interaction.reply({
-          content:
-            language === "ar"
-              ? "✅ لا توجد تحذيرات في هذا السيرفر."
-              : "✅ There are no warnings in this server.",
-          ephemeral: true
-        });
-
-        return;
-      }
-
-      const counts = {};
-
-      for (const warning of data) {
-
-        if (!counts[warning.user_id]) {
-
-          counts[warning.user_id] = {
-            username:
-              warning.username,
-            count: 0
-          };
-        }
-
-        counts[
-          warning.user_id
-        ].count++;
-      }
-
-      const list =
-        Object.entries(counts)
-          .map(
-            ([userId, info]) =>
-              `⚠️ **${info.username}** — \`${info.count}\` ${language === "ar" ? "تحذير" : "warnings"}`
-          )
-          .join("\n");
-
-      const embed =
-        new EmbedBuilder()
-          .setColor(0xF1C40F)
-          .setTitle(
-            language === "ar"
-              ? "⚠️ قائمة التحذيرات"
-              : "⚠️ Warning List"
-          )
-          .setDescription(
-            list
-          )
-          .setFooter({
-            text:
-              language === "ar"
-                ? `إجمالي التحذيرات: ${data.length}`
-                : `Total warnings: ${data.length}`
-          })
-          .setTimestamp();
-
-      await interaction.reply({
-        embeds: [embed]
-      });
-
-      return;
-    }
+    return;
   }
-);
 
+  const warningNumber = (existingWarnings?.length || 0) + 1;
+
+  // Save warning
+  const { data: warningData, error } =
+    await supabase
+      .from("warnings")
+      .insert({
+        guild_id: interaction.guild.id,
+        user_id: user.id,
+        username: user.username,
+        reason: reason,
+        moderator_id: interaction.user.id
+      })
+      .select("created_at")
+      .single();
+
+  if (error) {
+    console.log("❌ Warning save:", error.message);
+
+    await interaction.reply({
+      content:
+        language === "ar"
+          ? "❌ لم أتمكن من حفظ التحذير."
+          : "❌ I couldn't save the warning.",
+      ephemeral: true
+    });
+
+    return;
+  }
+
+  const warningTime = warningData?.created_at
+    ? `<t:${Math.floor(
+        new Date(warningData.created_at).getTime() / 1000
+      )}:F>`
+    : `<t:${Math.floor(Date.now() / 1000)}:F>`;
+
+  const embed = new EmbedBuilder()
+    .setColor(0xF1C40F)
+    .setTitle(
+      language === "ar"
+        ? "⚠️ تحذير جديد"
+        : "⚠️ New Warning"
+    )
+    .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+    .addFields(
+      {
+        name: language === "ar" ? "👤 الاسم" : "👤 Name",
+        value: user.globalName
+          ? `${user.globalName}`
+          : user.username,
+        inline: true
+      },
+      {
+        name: language === "ar" ? "🏷️ Username" : "🏷️ Username",
+        value: `@${user.username}`,
+        inline: true
+      },
+      {
+        name: language === "ar" ? "🆔 المعرّف" : "🆔 User ID",
+        value: `\`${user.id}\``,
+        inline: false
+      },
+      {
+        name: language === "ar" ? "📝 السبب" : "📝 Reason",
+        value: reason,
+        inline: false
+      },
+      {
+        name: language === "ar" ? "🕐 الوقت" : "🕐 Time",
+        value: warningTime,
+        inline: false
+      },
+      {
+        name: language === "ar" ? "👮 المشرف" : "👮 Moderator",
+        value: `<@${interaction.user.id}>`,
+        inline: true
+      },
+      {
+        name: language === "ar" ? "🔢 رقم التحذير" : "🔢 Warning #",
+        value: `\`${warningNumber}\``,
+        inline: true
+      }
+    )
+    .setFooter({
+      text:
+        language === "ar"
+          ? `السيرفر: ${interaction.guild.name}`
+          : `Server: ${interaction.guild.name}`
+    })
+    .setTimestamp();
+
+  await interaction.reply({
+    embeds: [embed]
+  });
+
+  return;
+}
+
+
+// ==================================================
+// UNWARN
+// ==================================================
+
+if (interaction.commandName === "unwarn") {
+  const user = interaction.options.getUser("user");
+
+  const { data, error } =
+    await supabase
+      .from("warnings")
+      .select("id, username, reason, created_at, moderator_id")
+      .eq("guild_id", interaction.guild.id)
+      .eq("user_id", user.id)
+      .order("created_at", {
+        ascending: false
+      })
+      .limit(1);
+
+  if (
+    error ||
+    !data ||
+    data.length === 0
+  ) {
+    await interaction.reply({
+      content:
+        language === "ar"
+          ? "❌ هذا العضو لا يملك تحذيرات."
+          : "❌ This member has no warnings.",
+      ephemeral: true
+    });
+
+    return;
+  }
+
+  const warning = data[0];
+
+  const { error: deleteError } =
+    await supabase
+      .from("warnings")
+      .delete()
+      .eq("id", warning.id);
+
+  if (deleteError) {
+    console.log(
+      "❌ Warning delete:",
+      deleteError.message
+    );
+
+    await interaction.reply({
+      content:
+        language === "ar"
+          ? "❌ لم أتمكن من إزالة التحذير."
+          : "❌ I couldn't remove the warning.",
+      ephemeral: true
+    });
+
+    return;
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(0x2ECC71)
+    .setTitle(
+      language === "ar"
+        ? "✅ تمت إزالة التحذير"
+        : "✅ Warning Removed"
+    )
+    .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+    .addFields(
+      {
+        name: language === "ar" ? "👤 العضو" : "👤 Member",
+        value: `${user.globalName || user.username} (@${user.username})`,
+        inline: false
+      },
+      {
+        name: language === "ar" ? "📝 سبب التحذير" : "📝 Warning Reason",
+        value: warning.reason || (language === "ar" ? "بدون سبب" : "No reason"),
+        inline: false
+      },
+      {
+        name: language === "ar" ? "👮 أزال التحذير" : "👮 Removed By",
+        value: `<@${interaction.user.id}>`,
+        inline: true
+      }
+    )
+    .setTimestamp();
+
+  await interaction.reply({
+    embeds: [embed]
+  });
+
+  return;
+}
+
+
+// ==================================================
+// WARNINGS
+// ==================================================
+
+if (interaction.commandName === "warnings") {
+  const { data, error } =
+    await supabase
+      .from("warnings")
+      .select(
+        "id, user_id, username, reason, moderator_id, created_at"
+      )
+      .eq("guild_id", interaction.guild.id)
+      .order("created_at", {
+        ascending: false
+      });
+
+  if (error) {
+    console.log(
+      "❌ Warnings:",
+      error.message
+    );
+
+    await interaction.reply({
+      content:
+        language === "ar"
+          ? "❌ لم أتمكن من جلب التحذيرات."
+          : "❌ I couldn't load the warnings.",
+      ephemeral: true
+    });
+
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    await interaction.reply({
+      content:
+        language === "ar"
+          ? "✅ لا توجد تحذيرات في هذا السيرفر."
+          : "✅ There are no warnings in this server.",
+      ephemeral: true
+    });
+
+    return;
+  }
+
+  const warningList = data
+    .map((warning, index) => {
+      const time = warning.created_at
+        ? `<t:${Math.floor(
+            new Date(warning.created_at).getTime() / 1000
+          )}:R>`
+        : (language === "ar" ? "وقت غير معروف" : "Unknown time");
+
+      return (
+        `**#${data.length - index} — ⚠️ ${warning.username}**\n` +
+        `🆔 \`${warning.user_id}\`\n` +
+        `📝 ${warning.reason || (language === "ar" ? "بدون سبب" : "No reason")}\n` +
+        `👮 <@${warning.moderator_id}>\n` +
+        `🕐 ${time}`
+      );
+    })
+    .join("\n\n");
+
+  const embed = new EmbedBuilder()
+    .setColor(0xF1C40F)
+    .setTitle(
+      language === "ar"
+        ? "⚠️ سجل التحذيرات"
+        : "⚠️ Warning History"
+    )
+    .setDescription(warningList)
+    .setFooter({
+      text:
+        language === "ar"
+          ? `إجمالي التحذيرات: ${data.length}`
+          : `Total warnings: ${data.length}`
+    })
+    .setTimestamp();
+
+  await interaction.reply({
+    embeds: [embed]
+  });
+
+  return;
+}
 // ==================================================
 // LOGIN
 // ==================================================
