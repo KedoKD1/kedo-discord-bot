@@ -1,14 +1,18 @@
 {
-  "name": "kdbot-dashboard",
+  "name": "kedo-dashboard",
   "version": "1.0.0",
-  "private": true,
   "description": "KDBot Discord Dashboard",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "express": "^5.1.0",
-    "express-session": "^1.18.2"
+    "discord.js": "^14.21.0",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "@supabase/supabase-js": "^2.57.0"
   }
 }
