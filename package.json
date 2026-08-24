@@ -4,7 +4,7 @@
   "description": "Kedo Discord Bot",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node dashboard/server.js"
   },
   "dependencies": {
     "discord.js": "^14.21.0",
