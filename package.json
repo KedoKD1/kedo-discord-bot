@@ -1,13 +1,16 @@
 {
-  "name": "kedo-discord-bot",
+  "name": "kedo-dashboard",
   "version": "1.0.0",
-  "description": "Kedo Discord Bot",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node dashboard/server.js"
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
-    "discord.js": "^14.21.0",
-    "@supabase/supabase-js": "^2.0.0"
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "@supabase/supabase-js": "^2.57.0"
   }
 }
