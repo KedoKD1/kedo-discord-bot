@@ -13,6 +13,8 @@ const {
   PermissionFlagsBits
 } = require("discord.js");
 
+const express = require("express");
+
 // ==================================================
 // ENVIRONMENT
 // ==================================================
@@ -24,6 +26,8 @@ const SUPABASE_KEY =
   process.env.SUPABASE_KEY;
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+
+const PORT = process.env.PORT || 3000;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("❌ Supabase environment variables are missing!");
@@ -44,8 +48,15 @@ const supabase = createClient(
   SUPABASE_KEY
 );
 
-console.log("Supabase URL exists:", !!SUPABASE_URL);
-console.log("Supabase Key exists:", !!SUPABASE_KEY);
+console.log(
+  "Supabase URL exists:",
+  !!SUPABASE_URL
+);
+
+console.log(
+  "Supabase Key exists:",
+  !!SUPABASE_KEY
+);
 
 // ==================================================
 // DISCORD CLIENT
@@ -60,6 +71,25 @@ const client = new Client({
 });
 
 global.kdbot = client;
+
+// ==================================================
+// DASHBOARD SERVER
+// ==================================================
+
+const app = express();
+
+app.use(express.json());
+
+// ==================================================
+// REAL DISCORD CONNECTION STATE
+// ==================================================
+
+let discordConnection = {
+  connected: false,
+  status: "offline",
+  lastConnectedAt: null,
+  lastDisconnectedAt: null
+};
 
 // ==================================================
 // CACHE
@@ -94,22 +124,35 @@ async function getLanguage(interaction) {
 
   if (!error && data && data.length > 0) {
     const language =
-      data[0].language === "en" ? "en" : "ar";
+      data[0].language === "en"
+        ? "en"
+        : "ar";
 
-    userLanguages.set(userId, language);
+    userLanguages.set(
+      userId,
+      language
+    );
 
     return language;
   }
 
   const language =
     interaction.locale &&
-    interaction.locale.toLowerCase().startsWith("ar")
+    interaction.locale
+      .toLowerCase()
+      .startsWith("ar")
       ? "ar"
       : "en";
 
-  userLanguages.set(userId, language);
+  userLanguages.set(
+    userId,
+    language
+  );
 
-  await saveUser(interaction, language);
+  await saveUser(
+    interaction,
+    language
+  );
 
   return language;
 }
@@ -118,51 +161,88 @@ async function getLanguage(interaction) {
 // SAVE USER
 // ==================================================
 
-async function saveUser(interaction, language) {
-  const discordId = interaction.user.id;
-  const username = interaction.user.username;
+async function saveUser(
+  interaction,
+  language
+) {
 
-  const { data, error } = await supabase
+  const discordId =
+    interaction.user.id;
+
+  const username =
+    interaction.user.username;
+
+  const {
+    data,
+    error
+  } = await supabase
     .from("users")
     .select("id")
-    .eq("discord_id", discordId)
+    .eq(
+      "discord_id",
+      discordId
+    )
     .limit(1);
 
   if (error) {
-    console.log("❌ User lookup:", error.message);
+
+    console.log(
+      "❌ User lookup:",
+      error.message
+    );
+
     return;
   }
 
-  if (data && data.length > 0) {
-    const { error: updateError } = await supabase
+  if (
+    data &&
+    data.length > 0
+  ) {
+
+    const {
+      error: updateError
+    } = await supabase
       .from("users")
       .update({
         username,
         language
       })
-      .eq("discord_id", discordId);
+      .eq(
+        "discord_id",
+        discordId
+      );
 
     if (updateError) {
+
       console.log(
         "❌ User update:",
         updateError.message
       );
+
     }
+
   } else {
-    const { error: insertError } = await supabase
+
+    const {
+      error: insertError
+    } = await supabase
       .from("users")
       .insert({
-        discord_id: discordId,
+        discord_id:
+          discordId,
         username,
         language
       });
 
     if (insertError) {
+
       console.log(
         "❌ User insert:",
         insertError.message
       );
+
     }
+
   }
 }
 
@@ -170,44 +250,73 @@ async function saveUser(interaction, language) {
 // SAVE GUILD
 // ==================================================
 
-async function saveGuild(guild, language = "ar") {
-  if (!guild) return;
+async function saveGuild(
+  guild,
+  language = "ar"
+) {
 
-  const { data, error } = await supabase
+  if (!guild) {
+    return;
+  }
+
+  const {
+    data,
+    error
+  } = await supabase
     .from("guilds")
     .select("id")
-    .eq("guild_id", guild.id)
+    .eq(
+      "guild_id",
+      guild.id
+    )
     .limit(1);
 
   if (error) {
+
     console.log(
       "❌ Guild lookup:",
       error.message
     );
+
     return;
   }
 
-  if (data && data.length > 0) {
+  if (
+    data &&
+    data.length > 0
+  ) {
+
     await supabase
       .from("guilds")
       .update({
         language
       })
-      .eq("guild_id", guild.id);
+      .eq(
+        "guild_id",
+        guild.id
+      );
+
   } else {
-    const { error: insertError } = await supabase
+
+    const {
+      error: insertError
+    } = await supabase
       .from("guilds")
       .insert({
-        guild_id: guild.id,
+        guild_id:
+          guild.id,
         language
       });
 
     if (insertError) {
+
       console.log(
         "❌ Guild insert:",
         insertError.message
       );
+
     }
+
   }
 
   guildLanguages.set(
@@ -220,45 +329,101 @@ async function saveGuild(guild, language = "ar") {
 // UPTIME
 // ==================================================
 
-function formatUptime(seconds, language) {
-  const days = Math.floor(seconds / 86400);
+function formatUptime(
+  seconds,
+  language
+) {
+
+  const days =
+    Math.floor(
+      seconds / 86400
+    );
 
   seconds %= 86400;
 
-  const hours = Math.floor(seconds / 3600);
+  const hours =
+    Math.floor(
+      seconds / 3600
+    );
 
   seconds %= 3600;
 
-  const minutes = Math.floor(seconds / 60);
+  const minutes =
+    Math.floor(
+      seconds / 60
+    );
 
   seconds %= 60;
 
-  if (language === "ar") {
+  if (
+    language === "ar"
+  ) {
+
     const parts = [];
 
-    if (days) parts.push(`${days} يوم`);
-
-    if (hours) parts.push(`${hours} ساعة`);
-
-    if (minutes) parts.push(`${minutes} دقيقة`);
-
-    if (seconds || parts.length === 0) {
-      parts.push(`${seconds} ثانية`);
+    if (days) {
+      parts.push(
+        `${days} يوم`
+      );
     }
 
-    return parts.join(" و ");
+    if (hours) {
+      parts.push(
+        `${hours} ساعة`
+      );
+    }
+
+    if (minutes) {
+      parts.push(
+        `${minutes} دقيقة`
+      );
+    }
+
+    if (
+      seconds ||
+      parts.length === 0
+    ) {
+
+      parts.push(
+        `${seconds} ثانية`
+      );
+
+    }
+
+    return parts.join(
+      " و "
+    );
   }
 
   const parts = [];
 
-  if (days) parts.push(`${days}d`);
+  if (days) {
+    parts.push(
+      `${days}d`
+    );
+  }
 
-  if (hours) parts.push(`${hours}h`);
+  if (hours) {
+    parts.push(
+      `${hours}h`
+    );
+  }
 
-  if (minutes) parts.push(`${minutes}m`);
+  if (minutes) {
+    parts.push(
+      `${minutes}m`
+    );
+  }
 
-  if (seconds || parts.length === 0) {
-    parts.push(`${seconds}s`);
+  if (
+    seconds ||
+    parts.length === 0
+  ) {
+
+    parts.push(
+      `${seconds}s`
+    );
+
   }
 
   return parts.join(" ");
@@ -268,18 +433,30 @@ function formatUptime(seconds, language) {
 // TIME
 // ==================================================
 
-function convertTime(amount, unit) {
+function convertTime(
+  amount,
+  unit
+) {
+
   const units = {
     seconds: 1000,
     minutes: 60 * 1000,
-    hours: 60 * 60 * 1000,
-    days: 24 * 60 * 60 * 1000
+    hours:
+      60 *
+      60 *
+      1000,
+    days:
+      24 *
+      60 *
+      60 *
+      1000
   };
 
   return amount * units[unit];
 }
 
 function unitChoices() {
+
   return [
     {
       name: "Seconds",
@@ -301,50 +478,355 @@ function unitChoices() {
 }
 
 // ==================================================
+// DASHBOARD DATA
+// ==================================================
+
+function getDashboardGuilds() {
+
+  if (
+    !client.isReady() ||
+    !discordConnection.connected
+  ) {
+
+    return [];
+  }
+
+  return client.guilds.cache
+    .map(guild => ({
+      id: guild.id,
+
+      name: guild.name,
+
+      icon: guild.iconURL({
+        extension: "png",
+        size: 256
+      }),
+
+      memberCount:
+        guild.memberCount,
+
+      ownerId:
+        guild.ownerId
+    }))
+    .sort(
+      (a, b) =>
+        a.name.localeCompare(
+          b.name
+        )
+    );
+}
+
+// ==================================================
+// DASHBOARD API
+// ==================================================
+
+app.get(
+  "/api/dashboard",
+  (req, res) => {
+
+    const connected =
+      client.isReady() &&
+      discordConnection.connected;
+
+    const guilds =
+      getDashboardGuilds();
+
+    res.json({
+
+      success: true,
+
+      connection: {
+
+        connected,
+
+        status:
+          discordConnection.status,
+
+        lastConnectedAt:
+          discordConnection.lastConnectedAt,
+
+        lastDisconnectedAt:
+          discordConnection.lastDisconnectedAt
+
+      },
+
+      bot: {
+
+        ready:
+          client.isReady(),
+
+        user: client.user
+          ? {
+              id:
+                client.user.id,
+
+              username:
+                client.user.username,
+
+              tag:
+                client.user.tag,
+
+              avatar:
+                client.user.displayAvatarURL({
+                  extension: "png",
+                  size: 256
+                })
+            }
+          : null
+
+      },
+
+      servers: guilds
+
+    });
+
+  }
+);
+
+// ==================================================
+// DASHBOARD CONNECTION
+// ==================================================
+
+app.get(
+  "/api/dashboard/connection",
+  (req, res) => {
+
+    const connected =
+      client.isReady() &&
+      discordConnection.connected;
+
+    res.json({
+
+      success: true,
+
+      connected,
+
+      status:
+        discordConnection.status,
+
+      discordReady:
+        client.isReady(),
+
+      lastConnectedAt:
+        discordConnection.lastConnectedAt,
+
+      lastDisconnectedAt:
+        discordConnection.lastDisconnectedAt
+
+    });
+
+  }
+);
+
+// ==================================================
+// DASHBOARD SERVERS
+// ==================================================
+
+app.get(
+  "/api/dashboard/guilds",
+  (req, res) => {
+
+    const connected =
+      client.isReady() &&
+      discordConnection.connected;
+
+    if (!connected) {
+
+      return res.json({
+
+        success: true,
+
+        connected: false,
+
+        guilds: []
+
+      });
+
+    }
+
+    const guilds =
+      getDashboardGuilds();
+
+    res.json({
+
+      success: true,
+
+      connected: true,
+
+      count:
+        guilds.length,
+
+      guilds
+
+    });
+
+  }
+);
+
+// ==================================================
+// SINGLE GUILD
+// ==================================================
+
+app.get(
+  "/api/dashboard/guild/:guildId",
+  (req, res) => {
+
+    if (
+      !client.isReady() ||
+      !discordConnection.connected
+    ) {
+
+      return res.status(503).json({
+
+        success: false,
+
+        error:
+          "Discord connection is not ready"
+
+      });
+
+    }
+
+    const guild =
+      client.guilds.cache.get(
+        req.params.guildId
+      );
+
+    if (!guild) {
+
+      return res.status(404).json({
+
+        success: false,
+
+        error:
+          "KDBot is not in this server"
+
+      });
+
+    }
+
+    res.json({
+
+      success: true,
+
+      guild: {
+
+        id:
+          guild.id,
+
+        name:
+          guild.name,
+
+        icon:
+          guild.iconURL({
+            extension: "png",
+            size: 256
+          }),
+
+        memberCount:
+          guild.memberCount,
+
+        ownerId:
+          guild.ownerId
+
+      }
+
+    });
+
+  }
+);
+
+// ==================================================
+// DASHBOARD HEALTH
+// ==================================================
+
+app.get(
+  "/api/health",
+  (req, res) => {
+
+    const connected =
+      client.isReady() &&
+      discordConnection.connected;
+
+    res.json({
+
+      success: true,
+
+      status:
+        connected
+          ? "online"
+          : "offline",
+
+      connected,
+
+      discordReady:
+        client.isReady(),
+
+      timestamp:
+        new Date().toISOString()
+
+    });
+
+  }
+);
+
+// ==================================================
 // COMMANDS
 // ==================================================
 
 const commands = [
 
-  // PING
   new SlashCommandBuilder()
     .setName("ping")
-    .setDescription("Show bot status"),
+    .setDescription(
+      "Show bot status"
+    ),
 
-  // HELP
   new SlashCommandBuilder()
     .setName("help")
-    .setDescription("Open KDBot help center"),
+    .setDescription(
+      "Open KDBot help center"
+    ),
 
-  // LANGUAGE
   new SlashCommandBuilder()
     .setName("language")
-    .setDescription("Choose your language")
+    .setDescription(
+      "Choose your language"
+    )
     .addStringOption(option =>
       option
         .setName("language")
-        .setDescription("Choose a language")
+        .setDescription(
+          "Choose a language"
+        )
         .setRequired(true)
         .addChoices(
           {
-            name: "🇮🇶 العربية",
-            value: "ar"
+            name:
+              "🇮🇶 العربية",
+            value:
+              "ar"
           },
           {
-            name: "🇬🇧 English",
-            value: "en"
+            name:
+              "🇬🇧 English",
+            value:
+              "en"
           }
         )
     ),
 
-  // CLEAR
   new SlashCommandBuilder()
     .setName("clear")
-    .setDescription("Delete messages")
+    .setDescription(
+      "Delete messages"
+    )
     .addIntegerOption(option =>
       option
         .setName("amount")
-        .setDescription("Number of messages")
+        .setDescription(
+          "Number of messages"
+        )
         .setRequired(false)
         .setMinValue(1)
         .setMaxValue(100)
@@ -353,156 +835,199 @@ const commands = [
       PermissionFlagsBits.ManageMessages
     ),
 
-  // KICK
   new SlashCommandBuilder()
     .setName("kick")
-    .setDescription("Kick a member")
+    .setDescription(
+      "Kick a member"
+    )
     .addUserOption(option =>
       option
         .setName("user")
-        .setDescription("Member")
+        .setDescription(
+          "Member"
+        )
         .setRequired(true)
     )
     .addStringOption(option =>
       option
         .setName("reason")
-        .setDescription("Reason")
+        .setDescription(
+          "Reason"
+        )
         .setRequired(false)
     )
     .setDefaultMemberPermissions(
       PermissionFlagsBits.KickMembers
     ),
 
-  // BAN
   new SlashCommandBuilder()
     .setName("ban")
-    .setDescription("Ban a member")
+    .setDescription(
+      "Ban a member"
+    )
     .addUserOption(option =>
       option
         .setName("user")
-        .setDescription("Member")
+        .setDescription(
+          "Member"
+        )
         .setRequired(true)
     )
     .addIntegerOption(option =>
       option
         .setName("time")
-        .setDescription("Ban duration")
+        .setDescription(
+          "Ban duration"
+        )
         .setRequired(false)
         .setMinValue(1)
     )
     .addStringOption(option =>
       option
         .setName("unit")
-        .setDescription("Time unit")
+        .setDescription(
+          "Time unit"
+        )
         .setRequired(false)
-        .addChoices(...unitChoices())
+        .addChoices(
+          ...unitChoices()
+        )
     )
     .addStringOption(option =>
       option
         .setName("reason")
-        .setDescription("Reason")
+        .setDescription(
+          "Reason"
+        )
         .setRequired(false)
     )
     .setDefaultMemberPermissions(
       PermissionFlagsBits.BanMembers
     ),
 
-  // UNBAN
   new SlashCommandBuilder()
     .setName("unban")
-    .setDescription("Unban a user")
+    .setDescription(
+      "Unban a user"
+    )
     .addStringOption(option =>
       option
         .setName("userid")
-        .setDescription("Discord User ID")
+        .setDescription(
+          "Discord User ID"
+        )
         .setRequired(true)
     )
     .setDefaultMemberPermissions(
       PermissionFlagsBits.BanMembers
     ),
 
-  // TIMEOUT
   new SlashCommandBuilder()
     .setName("timeout")
-    .setDescription("Timeout a member")
+    .setDescription(
+      "Timeout a member"
+    )
     .addUserOption(option =>
       option
         .setName("user")
-        .setDescription("Member")
+        .setDescription(
+          "Member"
+        )
         .setRequired(true)
     )
     .addIntegerOption(option =>
       option
         .setName("time")
-        .setDescription("Timeout duration")
+        .setDescription(
+          "Timeout duration"
+        )
         .setRequired(true)
         .setMinValue(1)
     )
     .addStringOption(option =>
       option
         .setName("unit")
-        .setDescription("Time unit")
+        .setDescription(
+          "Time unit"
+        )
         .setRequired(true)
-        .addChoices(...unitChoices())
+        .addChoices(
+          ...unitChoices()
+        )
     )
     .addStringOption(option =>
       option
         .setName("reason")
-        .setDescription("Reason")
+        .setDescription(
+          "Reason"
+        )
         .setRequired(false)
     )
     .setDefaultMemberPermissions(
       PermissionFlagsBits.ModerateMembers
     ),
 
-  // UNTIMEOUT
   new SlashCommandBuilder()
     .setName("untimeout")
-    .setDescription("Remove a timeout")
+    .setDescription(
+      "Remove a timeout"
+    )
     .addUserOption(option =>
       option
         .setName("user")
-        .setDescription("Member")
+        .setDescription(
+          "Member"
+        )
         .setRequired(true)
     )
     .setDefaultMemberPermissions(
       PermissionFlagsBits.ModerateMembers
     ),
 
-  // WARN
   new SlashCommandBuilder()
     .setName("warn")
-    .setDescription("Warn a member")
+    .setDescription(
+      "Warn a member"
+    )
     .addUserOption(option =>
       option
         .setName("user")
-        .setDescription("Member")
+        .setDescription(
+          "Member"
+        )
         .setRequired(true)
     )
     .addStringOption(option =>
       option
         .setName("reason")
-        .setDescription("Reason")
+        .setDescription(
+          "Reason"
+        )
         .setRequired(false)
     )
     .setDefaultMemberPermissions(
       PermissionFlagsBits.ModerateMembers
     ),
 
-  // UNWARN
   new SlashCommandBuilder()
     .setName("unwarn")
-    .setDescription("Remove a specific warning")
+    .setDescription(
+      "Remove a specific warning"
+    )
     .addUserOption(option =>
       option
         .setName("user")
-        .setDescription("Member")
+        .setDescription(
+          "Member"
+        )
         .setRequired(true)
     )
     .addIntegerOption(option =>
       option
         .setName("warning_number")
-        .setDescription("Warning number to remove")
+        .setDescription(
+          "Warning number to remove"
+        )
         .setRequired(true)
         .setMinValue(1)
     )
@@ -510,31 +1035,44 @@ const commands = [
       PermissionFlagsBits.ModerateMembers
     ),
 
-  // WARNINGS
   new SlashCommandBuilder()
     .setName("warnings")
-    .setDescription("Show warning history")
+    .setDescription(
+      "Show warning history"
+    )
     .addUserOption(option =>
       option
         .setName("user")
-        .setDescription("Show warnings for this member only")
+        .setDescription(
+          "Show warnings for this member only"
+        )
         .setRequired(false)
     )
     .setDefaultMemberPermissions(
       PermissionFlagsBits.ModerateMembers
     )
 
-].map(command => command.toJSON());
+].map(
+  command =>
+    command.toJSON()
+);
 
 // ==================================================
 // HELP
 // ==================================================
 
-function createHelpEmbed(section, language) {
+function createHelpEmbed(
+  section,
+  language
+) {
 
-  const isArabic = language === "ar";
+  const isArabic =
+    language === "ar";
 
-  if (section === "home") {
+  if (
+    section === "home"
+  ) {
+
     return new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle(
@@ -549,49 +1087,70 @@ function createHelpEmbed(section, language) {
       )
       .addFields(
         {
-          name: isArabic
-            ? "📊 ┃ المعلومات"
-            : "📊 ┃ Information",
-          value: isArabic
-            ? "معلومات وحالة البوت"
-            : "Bot information and status",
+          name:
+            isArabic
+              ? "📊 ┃ المعلومات"
+              : "📊 ┃ Information",
+
+          value:
+            isArabic
+              ? "معلومات وحالة البوت"
+              : "Bot information and status",
+
           inline: true
         },
         {
-          name: isArabic
-            ? "🛠️ ┃ الإدارة"
-            : "🛠️ ┃ Management",
-          value: isArabic
-            ? "أوامر إدارة السيرفر"
-            : "Server management commands",
+          name:
+            isArabic
+              ? "🛠️ ┃ الإدارة"
+              : "🛠️ ┃ Management",
+
+          value:
+            isArabic
+              ? "أوامر إدارة السيرفر"
+              : "Server management commands",
+
           inline: true
         },
         {
-          name: isArabic
-            ? "🎮 ┃ الترفيه"
-            : "🎮 ┃ Fun",
-          value: isArabic
-            ? "أوامر الترفيه"
-            : "Fun commands",
+          name:
+            isArabic
+              ? "🎮 ┃ الترفيه"
+              : "🎮 ┃ Fun",
+
+          value:
+            isArabic
+              ? "أوامر الترفيه"
+              : "Fun commands",
+
           inline: true
         },
         {
-          name: isArabic
-            ? "⚙️ ┃ الإعدادات"
-            : "⚙️ ┃ Settings",
-          value: isArabic
-            ? "إعدادات البوت"
-            : "Bot settings",
+          name:
+            isArabic
+              ? "⚙️ ┃ الإعدادات"
+              : "⚙️ ┃ Settings",
+
+          value:
+            isArabic
+              ? "إعدادات البوت"
+              : "Bot settings",
+
           inline: true
         }
       )
       .setFooter({
-        text: "KDBot • Help Center"
+        text:
+          "KDBot • Help Center"
       })
       .setTimestamp();
+
   }
 
-  if (section === "info") {
+  if (
+    section === "info"
+  ) {
+
     return new EmbedBuilder()
       .setColor(0x3498DB)
       .setTitle(
@@ -605,15 +1164,23 @@ function createHelpEmbed(section, language) {
           : "**Information and bot status commands**"
       )
       .addFields({
-        name: "🏓 `/ping`",
-        value: isArabic
-          ? "عرض سرعة الاستجابة والسيرفرات والمستخدمين ومدة التشغيل."
-          : "Show latency, servers, users and uptime.",
+        name:
+          "🏓 `/ping`",
+
+        value:
+          isArabic
+            ? "عرض سرعة الاستجابة والسيرفرات والمستخدمين ومدة التشغيل."
+            : "Show latency, servers, users and uptime.",
+
         inline: false
       });
+
   }
 
-  if (section === "management") {
+  if (
+    section === "management"
+  ) {
+
     return new EmbedBuilder()
       .setColor(0xE67E22)
       .setTitle(
@@ -628,63 +1195,94 @@ function createHelpEmbed(section, language) {
       )
       .addFields(
         {
-          name: "🧹 `/clear`",
-          value: isArabic
-            ? "حذف الرسائل."
-            : "Delete messages."
+          name:
+            "🧹 `/clear`",
+
+          value:
+            isArabic
+              ? "حذف الرسائل."
+              : "Delete messages."
         },
         {
-          name: "👢 `/kick`",
-          value: isArabic
-            ? "طرد عضو."
-            : "Kick a member."
+          name:
+            "👢 `/kick`",
+
+          value:
+            isArabic
+              ? "طرد عضو."
+              : "Kick a member."
         },
         {
-          name: "🔨 `/ban`",
-          value: isArabic
-            ? "حظر عضو بشكل دائم أو مؤقت."
-            : "Permanent or temporary ban."
+          name:
+            "🔨 `/ban`",
+
+          value:
+            isArabic
+              ? "حظر عضو بشكل دائم أو مؤقت."
+              : "Permanent or temporary ban."
         },
         {
-          name: "🔓 `/unban`",
-          value: isArabic
-            ? "فك حظر مستخدم."
-            : "Unban a user."
+          name:
+            "🔓 `/unban`",
+
+          value:
+            isArabic
+              ? "فك حظر مستخدم."
+              : "Unban a user."
         },
         {
-          name: "⏱️ `/timeout`",
-          value: isArabic
-            ? "إعطاء عضو Timeout."
-            : "Timeout a member."
+          name:
+            "⏱️ `/timeout`",
+
+          value:
+            isArabic
+              ? "إعطاء عضو Timeout."
+              : "Timeout a member."
         },
         {
-          name: "🔄 `/untimeout`",
-          value: isArabic
-            ? "إزالة Timeout."
-            : "Remove timeout."
+          name:
+            "🔄 `/untimeout`",
+
+          value:
+            isArabic
+              ? "إزالة Timeout."
+              : "Remove timeout."
         },
         {
-          name: "⚠️ `/warn`",
-          value: isArabic
-            ? "إضافة تحذير."
-            : "Add a warning."
+          name:
+            "⚠️ `/warn`",
+
+          value:
+            isArabic
+              ? "إضافة تحذير."
+              : "Add a warning."
         },
         {
-          name: "❌ `/unwarn`",
-          value: isArabic
-            ? "إزالة تحذير محدد بالرقم."
-            : "Remove a specific warning by number."
+          name:
+            "❌ `/unwarn`",
+
+          value:
+            isArabic
+              ? "إزالة تحذير محدد بالرقم."
+              : "Remove a specific warning by number."
         },
         {
-          name: "📋 `/warnings`",
-          value: isArabic
-            ? "عرض جميع التحذيرات أو تحذيرات عضو محدد."
-            : "Show all warnings or warnings for a specific member."
+          name:
+            "📋 `/warnings`",
+
+          value:
+            isArabic
+              ? "عرض جميع التحذيرات أو تحذيرات عضو محدد."
+              : "Show all warnings or warnings for a specific member."
         }
       );
+
   }
 
-  if (section === "fun") {
+  if (
+    section === "fun"
+  ) {
+
     return new EmbedBuilder()
       .setColor(0x9B59B6)
       .setTitle(
@@ -697,6 +1295,7 @@ function createHelpEmbed(section, language) {
           ? "**🚧 قريباً**\n\nسيتم إضافة أوامر الترفيه لاحقًا."
           : "**🚧 Coming Soon**\n\nFun commands will be added later."
       );
+
   }
 
   return new EmbedBuilder()
@@ -717,128 +1316,216 @@ function createHelpEmbed(section, language) {
 // HELP BUTTONS
 // ==================================================
 
-function createHelpButtons(language) {
+function createHelpButtons(
+  language
+) {
 
   const labels =
     language === "ar"
       ? {
-          home: "الرئيسية",
-          info: "المعلومات",
-          management: "الإدارة",
-          fun: "الترفيه",
-          settings: "الإعدادات"
+          home:
+            "الرئيسية",
+
+          info:
+            "المعلومات",
+
+          management:
+            "الإدارة",
+
+          fun:
+            "الترفيه",
+
+          settings:
+            "الإعدادات"
         }
+
       : {
-          home: "Home",
-          info: "Information",
-          management: "Management",
-          fun: "Fun",
-          settings: "Settings"
+          home:
+            "Home",
+
+          info:
+            "Information",
+
+          management:
+            "Management",
+
+          fun:
+            "Fun",
+
+          settings:
+            "Settings"
         };
 
-  return new ActionRowBuilder().addComponents(
+  return new ActionRowBuilder()
+    .addComponents(
 
-    new ButtonBuilder()
-      .setCustomId("help_home")
-      .setLabel(labels.home)
-      .setEmoji("🏠")
-      .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(
+          "help_home"
+        )
+        .setLabel(
+          labels.home
+        )
+        .setEmoji("🏠")
+        .setStyle(
+          ButtonStyle.Primary
+        ),
 
-    new ButtonBuilder()
-      .setCustomId("help_info")
-      .setLabel(labels.info)
-      .setEmoji("📊")
-      .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(
+          "help_info"
+        )
+        .setLabel(
+          labels.info
+        )
+        .setEmoji("📊")
+        .setStyle(
+          ButtonStyle.Secondary
+        ),
 
-    new ButtonBuilder()
-      .setCustomId("help_management")
-      .setLabel(labels.management)
-      .setEmoji("🛠️")
-      .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(
+          "help_management"
+        )
+        .setLabel(
+          labels.management
+        )
+        .setEmoji("🛠️")
+        .setStyle(
+          ButtonStyle.Secondary
+        ),
 
-    new ButtonBuilder()
-      .setCustomId("help_fun")
-      .setLabel(labels.fun)
-      .setEmoji("🎮")
-      .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(
+          "help_fun"
+        )
+        .setLabel(
+          labels.fun
+        )
+        .setEmoji("🎮")
+        .setStyle(
+          ButtonStyle.Secondary
+        ),
 
-    new ButtonBuilder()
-      .setCustomId("help_settings")
-      .setLabel(labels.settings)
-      .setEmoji("⚙️")
-      .setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder()
+        .setCustomId(
+          "help_settings"
+        )
+        .setLabel(
+          labels.settings
+        )
+        .setEmoji("⚙️")
+        .setStyle(
+          ButtonStyle.Secondary
+        )
 
-  );
+    );
 }
 
 // ==================================================
 // TEMP BAN
 // ==================================================
 
-async function scheduleTempBan(row) {
+async function scheduleTempBan(
+  row
+) {
 
   const expires =
-    new Date(row.expires_at).getTime();
+    new Date(
+      row.expires_at
+    ).getTime();
 
   const remaining =
-    expires - Date.now();
+    expires -
+    Date.now();
 
-  if (remaining <= 0) {
+  if (
+    remaining <= 0
+  ) {
 
     try {
+
       const guild =
-        client.guilds.cache.get(row.guild_id);
+        client.guilds.cache.get(
+          row.guild_id
+        );
 
       if (guild) {
+
         await guild.members.unban(
           row.user_id,
           "Temporary ban expired"
         );
+
       }
+
     } catch {}
 
     await supabase
       .from("tempbans")
       .delete()
-      .eq("id", row.id);
+      .eq(
+        "id",
+        row.id
+      );
 
     return;
   }
 
-  if (tempBanTimers.has(row.id)) {
+  if (
+    tempBanTimers.has(
+      row.id
+    )
+  ) {
+
     clearTimeout(
-      tempBanTimers.get(row.id)
+      tempBanTimers.get(
+        row.id
+      )
     );
+
   }
 
-  const timer = setTimeout(
-    async () => {
+  const timer =
+    setTimeout(
+      async () => {
 
-      try {
-        const guild =
-          client.guilds.cache.get(row.guild_id);
+        try {
 
-        if (guild) {
-          await guild.members.unban(
-            row.user_id,
-            "Temporary ban expired"
+          const guild =
+            client.guilds.cache.get(
+              row.guild_id
+            );
+
+          if (guild) {
+
+            await guild.members.unban(
+              row.user_id,
+              "Temporary ban expired"
+            );
+
+          }
+
+        } catch {}
+
+        await supabase
+          .from("tempbans")
+          .delete()
+          .eq(
+            "id",
+            row.id
           );
-        }
-      } catch {}
 
-      await supabase
-        .from("tempbans")
-        .delete()
-        .eq("id", row.id);
+        tempBanTimers.delete(
+          row.id
+        );
 
-      tempBanTimers.delete(row.id);
-
-    },
-    Math.min(
-      remaining,
-      2147483647
-    )
-  );
+      },
+      Math.min(
+        remaining,
+        2147483647
+      )
+    );
 
   tempBanTimers.set(
     row.id,
@@ -852,21 +1539,32 @@ async function scheduleTempBan(row) {
 
 async function loadTempBans() {
 
-  const { data, error } =
-    await supabase
-      .from("tempbans")
-      .select("*");
+  const {
+    data,
+    error
+  } = await supabase
+    .from("tempbans")
+    .select("*");
 
   if (error) {
+
     console.log(
       "❌ Tempban load:",
       error.message
     );
+
     return;
   }
 
-  for (const row of data || []) {
-    await scheduleTempBan(row);
+  for (
+    const row of
+    data || []
+  ) {
+
+    await scheduleTempBan(
+      row
+    );
+
   }
 
   console.log(
@@ -875,33 +1573,35 @@ async function loadTempBans() {
 }
 
 // ==================================================
-// WARNING NUMBER
-// ==================================================
-//
-// رقم التحذير يحسب حسب تاريخ التحذير.
-// الأقدم = #1
-// الأحدث = الرقم الأعلى.
-//
+// WARNING NUMBERS
 // ==================================================
 
-function assignWarningNumbers(warnings) {
+function assignWarningNumbers(
+  warnings
+) {
 
-  const sorted = [...warnings].sort(
-    (a, b) =>
-      new Date(a.created_at).getTime() -
-      new Date(b.created_at).getTime()
-  );
+  const sorted =
+    [...warnings].sort(
+      (a, b) =>
+        new Date(
+          a.created_at
+        ).getTime() -
+        new Date(
+          b.created_at
+        ).getTime()
+    );
 
   return sorted.map(
     (warning, index) => ({
       ...warning,
-      warning_number: index + 1
+      warning_number:
+        index + 1
     })
   );
 }
 
 // ==================================================
-// WARNING PAGINATION
+// WARNING EMBED
 // ==================================================
 
 function createWarningsEmbed({
@@ -912,7 +1612,9 @@ function createWarningsEmbed({
 }) {
 
   const numberedWarnings =
-    assignWarningNumbers(warnings);
+    assignWarningNumbers(
+      warnings
+    );
 
   const totalPages =
     Math.max(
@@ -930,12 +1632,14 @@ function createWarningsEmbed({
     );
 
   const start =
-    safePage * WARNINGS_PER_PAGE;
+    safePage *
+    WARNINGS_PER_PAGE;
 
   const pageWarnings =
     numberedWarnings.slice(
       start,
-      start + WARNINGS_PER_PAGE
+      start +
+        WARNINGS_PER_PAGE
     );
 
   const isArabic =
@@ -950,7 +1654,8 @@ function createWarningsEmbed({
             ? `<t:${Math.floor(
                 new Date(
                   warning.created_at
-                ).getTime() / 1000
+                ).getTime() /
+                1000
               )}:F>`
             : (
                 isArabic
@@ -1011,7 +1716,7 @@ function createWarningsEmbed({
 }
 
 // ==================================================
-// WARNING PAGINATION BUTTONS
+// WARNING BUTTONS
 // ==================================================
 
 function createWarningsButtons({
@@ -1025,21 +1730,32 @@ function createWarningsButtons({
       .setCustomId(
         `warnings_prev:${ownerId}:${page}`
       )
-      .setLabel("السابق")
+      .setLabel(
+        "السابق"
+      )
       .setEmoji("◀️")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(page <= 0);
+      .setStyle(
+        ButtonStyle.Secondary
+      )
+      .setDisabled(
+        page <= 0
+      );
 
   const next =
     new ButtonBuilder()
       .setCustomId(
         `warnings_next:${ownerId}:${page}`
       )
-      .setLabel("التالي")
+      .setLabel(
+        "التالي"
+      )
       .setEmoji("▶️")
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(
+        ButtonStyle.Primary
+      )
       .setDisabled(
-        page >= totalPages - 1
+        page >=
+        totalPages - 1
       );
 
   return new ActionRowBuilder()
@@ -1050,15 +1766,32 @@ function createWarningsButtons({
 }
 
 // ==================================================
-// READY
+// REAL DISCORD CONNECTION EVENTS
 // ==================================================
 
 client.once(
   "clientReady",
   async () => {
 
+    discordConnection.connected =
+      true;
+
+    discordConnection.status =
+      "connected";
+
+    discordConnection.lastConnectedAt =
+      new Date().toISOString();
+
     console.log(
       `[SUCCESS] Bot online as ${client.user.tag}`
+    );
+
+    console.log(
+      "🟢 REAL DISCORD CONNECTION: CONNECTED"
+    );
+
+    console.log(
+      `🖥️ REAL SERVERS: ${client.guilds.cache.size}`
     );
 
     try {
@@ -1075,7 +1808,8 @@ client.once(
           client.user.id
         ),
         {
-          body: commands
+          body:
+            commands
         }
       );
 
@@ -1087,16 +1821,18 @@ client.once(
         const guild of
         client.guilds.cache.values()
       ) {
+
         await saveGuild(
           guild,
           "ar"
         );
+
       }
 
       await loadTempBans();
 
       console.log(
-        `[SUCCESS] Startup complete | Servers: ${client.guilds.cache.size} | Ping: ${client.ws.ping}ms`
+        `[SUCCESS] Startup complete | Servers: ${client.guilds.cache.size}`
       );
 
     } catch (error) {
@@ -1107,6 +1843,123 @@ client.once(
       );
 
     }
+
+  }
+);
+
+// ==================================================
+// REAL RECONNECT
+// ==================================================
+
+client.on(
+  "resume",
+  () => {
+
+    discordConnection.connected =
+      true;
+
+    discordConnection.status =
+      "connected";
+
+    discordConnection.lastConnectedAt =
+      new Date().toISOString();
+
+    console.log(
+      "🟢 REAL DISCORD CONNECTION: RESUMED"
+    );
+
+  }
+);
+
+// ==================================================
+// REAL DISCONNECT
+// ==================================================
+
+client.on(
+  "shardDisconnect",
+  () => {
+
+    discordConnection.connected =
+      false;
+
+    discordConnection.status =
+      "disconnected";
+
+    discordConnection.lastDisconnectedAt =
+      new Date().toISOString();
+
+    console.log(
+      "🔴 REAL DISCORD CONNECTION: DISCONNECTED"
+    );
+
+  }
+);
+
+// ==================================================
+// REAL RECONNECTING
+// ==================================================
+
+client.on(
+  "shardReconnecting",
+  () => {
+
+    discordConnection.connected =
+      false;
+
+    discordConnection.status =
+      "reconnecting";
+
+    console.log(
+      "🟡 REAL DISCORD CONNECTION: RECONNECTING"
+    );
+
+  }
+);
+
+// ==================================================
+// SERVER JOIN
+// ==================================================
+
+client.on(
+  "guildCreate",
+  async guild => {
+
+    console.log(
+      `➕ KDBot joined server: ${guild.name} (${guild.id})`
+    );
+
+    await saveGuild(
+      guild,
+      "ar"
+    );
+
+  }
+);
+
+// ==================================================
+// SERVER LEAVE
+// ==================================================
+
+client.on(
+  "guildDelete",
+  async guild => {
+
+    console.log(
+      `➖ KDBot left server: ${guild.name} (${guild.id})`
+    );
+
+    guildLanguages.delete(
+      guild.id
+    );
+
+    await supabase
+      .from("guilds")
+      .delete()
+      .eq(
+        "guild_id",
+        guild.id
+      );
+
   }
 );
 
@@ -1122,22 +1975,33 @@ client.on(
     // BUTTONS
     // ==================================================
 
-    if (interaction.isButton()) {
-
-      // ----------------------------------------------
-      // HELP BUTTONS
-      // ----------------------------------------------
+    if (
+      interaction.isButton()
+    ) {
 
       const helpMap = {
-        help_home: "home",
-        help_info: "info",
-        help_management: "management",
-        help_fun: "fun",
-        help_settings: "settings"
+
+        help_home:
+          "home",
+
+        help_info:
+          "info",
+
+        help_management:
+          "management",
+
+        help_fun:
+          "fun",
+
+        help_settings:
+          "settings"
+
       };
 
       if (
-        helpMap[interaction.customId]
+        helpMap[
+          interaction.customId
+        ]
       ) {
 
         const language =
@@ -1146,6 +2010,7 @@ client.on(
           );
 
         await interaction.update({
+
           embeds: [
             createHelpEmbed(
               helpMap[
@@ -1154,19 +2019,21 @@ client.on(
               language
             )
           ],
+
           components: [
             createHelpButtons(
               language
             )
           ]
+
         });
 
         return;
       }
 
-      // ----------------------------------------------
+      // ==================================================
       // WARNING PAGINATION
-      // ----------------------------------------------
+      // ==================================================
 
       if (
         interaction.customId.startsWith(
@@ -1178,22 +2045,31 @@ client.on(
       ) {
 
         const parts =
-          interaction.customId.split(":");
+          interaction.customId.split(
+            ":"
+          );
 
-        const action = parts[0];
-        const ownerId = parts[1];
+        const action =
+          parts[0];
+
+        const ownerId =
+          parts[1];
+
         const oldPage =
           Number(parts[2]);
 
-        // فقط الشخص الذي فتح القائمة
         if (
-          interaction.user.id !== ownerId
+          interaction.user.id !==
+          ownerId
         ) {
 
           await interaction.reply({
+
             content:
               "❌ هذه القائمة ليست لك. استخدم `/warnings` لفتح قائمتك الخاصة.",
+
             ephemeral: true
+
           });
 
           return;
@@ -1202,16 +2078,30 @@ client.on(
         let newPage =
           oldPage;
 
-        if (action === "warnings_prev") {
+        if (
+          action ===
+          "warnings_prev"
+        ) {
+
           newPage--;
+
         }
 
-        if (action === "warnings_next") {
+        if (
+          action ===
+          "warnings_next"
+        ) {
+
           newPage++;
+
         }
 
-        if (newPage < 0) {
+        if (
+          newPage < 0
+        ) {
+
           newPage = 0;
+
         }
 
         const language =
@@ -1219,31 +2109,38 @@ client.on(
             interaction
           );
 
-        const { data, error } =
-          await supabase
-            .from("warnings")
-            .select(
-              "id, user_id, username, reason, moderator_id, created_at"
-            )
-            .eq(
-              "guild_id",
-              interaction.guild.id
-            )
-            .order(
-              "created_at",
-              {
-                ascending: true
-              }
-            );
+        const {
+          data,
+          error
+        } = await supabase
+          .from("warnings")
+          .select(
+            "id, user_id, username, reason, moderator_id, created_at"
+          )
+          .eq(
+            "guild_id",
+            interaction.guild.id
+          )
+          .order(
+            "created_at",
+            {
+              ascending:
+                true
+            }
+          );
 
         if (error) {
 
           await interaction.reply({
+
             content:
               language === "ar"
                 ? "❌ حدث خطأ أثناء تحديث الصفحة."
                 : "❌ An error occurred while updating the page.",
-            ephemeral: true
+
+            ephemeral:
+              true
+
           });
 
           return;
@@ -1259,28 +2156,43 @@ client.on(
           );
 
         if (
-          newPage >= totalPages
+          newPage >=
+          totalPages
         ) {
+
           newPage =
             totalPages - 1;
+
         }
 
         await interaction.update({
+
           embeds: [
             createWarningsEmbed({
-              warnings: data || [],
-              page: newPage,
+              warnings:
+                data || [],
+
+              page:
+                newPage,
+
               language,
-              targetUser: null
+
+              targetUser:
+                null
             })
           ],
+
           components: [
             createWarningsButtons({
               ownerId,
-              page: newPage,
+
+              page:
+                newPage,
+
               totalPages
             })
           ]
+
         });
 
         return;
@@ -1296,7 +2208,9 @@ client.on(
     if (
       !interaction.isChatInputCommand()
     ) {
+
       return;
+
     }
 
     const language =
@@ -1329,11 +2243,15 @@ client.on(
       );
 
       await interaction.reply({
+
         content:
           newLanguage === "ar"
             ? "✅ تم تغيير اللغة إلى **العربية** 🇮🇶"
             : "✅ Language changed to **English** 🇬🇧",
-        ephemeral: true
+
+        ephemeral:
+          true
+
       });
 
       return;
@@ -1349,15 +2267,21 @@ client.on(
     ) {
 
       const ping =
-        Math.round(client.ws.ping);
+        Math.round(
+          client.ws.ping
+        );
 
       const servers =
         client.guilds.cache.size;
 
       const users =
         client.guilds.cache.reduce(
-          (total, guild) =>
-            total + guild.memberCount,
+          (
+            total,
+            guild
+          ) =>
+            total +
+            guild.memberCount,
           0
         );
 
@@ -1371,7 +2295,9 @@ client.on(
 
       const embed =
         new EmbedBuilder()
-          .setColor(0x57F287)
+          .setColor(
+            0x57F287
+          )
           .setTitle(
             language === "ar"
               ? "🟢 KDBot • حالة النظام"
@@ -1383,62 +2309,87 @@ client.on(
               : "**🟢 Bot is online and running normally**"
           )
           .addFields(
+
             {
               name:
                 language === "ar"
                   ? "🏓 سرعة الاستجابة"
                   : "🏓 Response Time",
+
               value:
                 `\`${ping}ms\``,
-              inline: true
+
+              inline:
+                true
             },
+
             {
               name:
                 language === "ar"
                   ? "💻 السيرفرات"
                   : "💻 Servers",
+
               value:
                 `\`${servers}\``,
-              inline: true
+
+              inline:
+                true
             },
+
             {
               name:
                 language === "ar"
                   ? "👥 المستخدمون"
                   : "👥 Users",
+
               value:
                 `\`${users.toLocaleString()}\``,
-              inline: true
+
+              inline:
+                true
             },
+
             {
               name:
                 language === "ar"
                   ? "⏱️ مدة التشغيل"
                   : "⏱️ Uptime",
+
               value:
                 `\`${uptime}\``,
-              inline: true
+
+              inline:
+                true
             },
+
             {
               name:
                 language === "ar"
                   ? "📡 حالة Discord"
                   : "📡 Discord Status",
+
               value:
                 language === "ar"
                   ? "🟢 متصل"
                   : "🟢 Online",
-              inline: true
+
+              inline:
+                true
             },
+
             {
               name:
                 language === "ar"
                   ? "⚙️ الإصدار"
                   : "⚙️ Version",
+
               value:
                 "`v1.0.0`",
-              inline: true
+
+              inline:
+                true
             }
+
           )
           .setFooter({
             text:
@@ -1447,7 +2398,9 @@ client.on(
           .setTimestamp();
 
       await interaction.reply({
-        embeds: [embed]
+        embeds: [
+          embed
+        ]
       });
 
       return;
@@ -1463,17 +2416,20 @@ client.on(
     ) {
 
       await interaction.reply({
+
         embeds: [
           createHelpEmbed(
             "home",
             language
           )
         ],
+
         components: [
           createHelpButtons(
             language
           )
         ]
+
       });
 
       return;
@@ -1502,21 +2458,29 @@ client.on(
           );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? `🧹 تم حذف **${deleted.size}** رسالة.`
               : `🧹 Deleted **${deleted.size}** messages.`,
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
       } catch {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ لا أستطيع حذف الرسائل. تأكد من صلاحياتي."
               : "❌ I cannot delete the messages. Check my permissions.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
       }
@@ -1550,8 +2514,12 @@ client.on(
 
       const member =
         await interaction.guild.members
-          .fetch(user.id)
-          .catch(() => null);
+          .fetch(
+            user.id
+          )
+          .catch(
+            () => null
+          );
 
       if (
         !member ||
@@ -1559,11 +2527,15 @@ client.on(
       ) {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ لا أستطيع طرد هذا العضو."
               : "❌ I cannot kick this member.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
@@ -1571,23 +2543,31 @@ client.on(
 
       try {
 
-        await member.kick(reason);
+        await member.kick(
+          reason
+        );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? `👢 تم طرد **${user.tag}**.\n📝 ${reason}`
               : `👢 **${user.tag}** was kicked.\n📝 ${reason}`
+
         });
 
       } catch {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ حدث خطأ أثناء الطرد."
               : "❌ An error occurred while kicking.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
       }
@@ -1635,11 +2615,15 @@ client.on(
       ) {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ اختر وحدة الوقت أيضًا."
               : "❌ Please choose a time unit too.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
@@ -1667,7 +2651,8 @@ client.on(
 
           const expiresAt =
             new Date(
-              Date.now() + duration
+              Date.now() +
+              duration
             ).toISOString();
 
           const {
@@ -1675,16 +2660,22 @@ client.on(
             error
           } =
             await supabase
-              .from("tempbans")
+              .from(
+                "tempbans"
+              )
               .insert({
                 guild_id:
                   interaction.guild.id,
+
                 user_id:
                   user.id,
+
                 username:
                   user.username,
+
                 expires_at:
                   expiresAt,
+
                 moderator_id:
                   interaction.user.id
               })
@@ -1707,19 +2698,23 @@ client.on(
           }
 
           await interaction.reply({
+
             content:
               language === "ar"
                 ? `🔨 تم حظر **${user.tag}** لمدة **${time} ${unit}**.`
                 : `🔨 **${user.tag}** was banned for **${time} ${unit}**.`
+
           });
 
         } else {
 
           await interaction.reply({
+
             content:
               language === "ar"
                 ? `🔨 تم حظر **${user.tag}** بشكل دائم.`
                 : `🔨 **${user.tag}** was permanently banned.`
+
           });
 
         }
@@ -1732,11 +2727,15 @@ client.on(
         );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ حدث خطأ أثناء الحظر."
               : "❌ An error occurred while banning.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
       }
@@ -1765,7 +2764,9 @@ client.on(
         );
 
         await supabase
-          .from("tempbans")
+          .from(
+            "tempbans"
+          )
           .delete()
           .eq(
             "guild_id",
@@ -1777,20 +2778,26 @@ client.on(
           );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? `🔓 تم فك حظر <@${userId}>.`
               : `🔓 <@${userId}> has been unbanned.`
+
         });
 
       } catch {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ لم أتمكن من فك الحظر. تأكد من ID."
               : "❌ I couldn't unban this user. Check the ID.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
       }
@@ -1834,8 +2841,12 @@ client.on(
 
       const member =
         await interaction.guild.members
-          .fetch(user.id)
-          .catch(() => null);
+          .fetch(
+            user.id
+          )
+          .catch(
+            () => null
+          );
 
       if (
         !member ||
@@ -1843,11 +2854,15 @@ client.on(
       ) {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ لا أستطيع إعطاء هذا العضو Timeout."
               : "❌ I cannot timeout this member.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
@@ -1867,20 +2882,26 @@ client.on(
         );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? `⏱️ تم إعطاء **${user.tag}** Timeout لمدة **${time} ${unit}**.`
               : `⏱️ **${user.tag}** was timed out for **${time} ${unit}**.`
+
         });
 
       } catch {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ حدث خطأ أثناء إعطاء Timeout."
               : "❌ An error occurred while applying timeout.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
       }
@@ -1904,17 +2925,25 @@ client.on(
 
       const member =
         await interaction.guild.members
-          .fetch(user.id)
-          .catch(() => null);
+          .fetch(
+            user.id
+          )
+          .catch(
+            () => null
+          );
 
       if (!member) {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ العضو غير موجود."
               : "❌ Member not found.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
@@ -1928,20 +2957,26 @@ client.on(
         );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? `🔄 تم إزالة Timeout عن **${user.tag}**.`
               : `🔄 Timeout removed from **${user.tag}**.`
+
         });
 
       } catch {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ لم أتمكن من إزالة Timeout."
               : "❌ I couldn't remove the timeout.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
       }
@@ -1974,11 +3009,15 @@ client.on(
         );
 
       const {
-        data: existingWarnings,
-        error: countError
+        data:
+          existingWarnings,
+        error:
+          countError
       } =
         await supabase
-          .from("warnings")
+          .from(
+            "warnings"
+          )
           .select(
             "id"
           )
@@ -1999,33 +3038,47 @@ client.on(
         );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ حدث خطأ أثناء جلب عدد التحذيرات."
               : "❌ An error occurred while checking warnings.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
       }
 
       const warningNumber =
-        (existingWarnings?.length || 0) + 1;
+        (
+          existingWarnings?.length ||
+          0
+        ) + 1;
 
       const {
-        data: warningData,
+        data:
+          warningData,
         error
       } =
         await supabase
-          .from("warnings")
+          .from(
+            "warnings"
+          )
           .insert({
             guild_id:
               interaction.guild.id,
+
             user_id:
               user.id,
+
             username:
               user.username,
+
             reason,
+
             moderator_id:
               interaction.user.id
           })
@@ -2042,11 +3095,15 @@ client.on(
         );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ لم أتمكن من حفظ التحذير."
               : "❌ I couldn't save the warning.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
@@ -2057,15 +3114,19 @@ client.on(
           ? `<t:${Math.floor(
               new Date(
                 warningData.created_at
-              ).getTime() / 1000
+              ).getTime() /
+              1000
             )}:F>`
           : `<t:${Math.floor(
-              Date.now() / 1000
+              Date.now() /
+              1000
             )}:F>`;
 
       const embed =
         new EmbedBuilder()
-          .setColor(0xF1C40F)
+          .setColor(
+            0xF1C40F
+          )
           .setTitle(
             language === "ar"
               ? "⚠️ تحذير جديد"
@@ -2077,68 +3138,97 @@ client.on(
             })
           )
           .addFields(
+
             {
               name:
                 language === "ar"
                   ? "👤 الاسم"
                   : "👤 Name",
+
               value:
                 user.globalName ||
                 user.username,
-              inline: true
+
+              inline:
+                true
             },
+
             {
               name:
                 "🏷️ Username",
+
               value:
                 `@${user.username}`,
-              inline: true
+
+              inline:
+                true
             },
+
             {
               name:
                 language === "ar"
                   ? "🆔 المعرّف"
                   : "🆔 User ID",
+
               value:
                 `\`${user.id}\``,
-              inline: false
+
+              inline:
+                false
             },
+
             {
               name:
                 language === "ar"
                   ? "📝 السبب"
                   : "📝 Reason",
+
               value:
                 reason,
-              inline: false
+
+              inline:
+                false
             },
+
             {
               name:
                 language === "ar"
                   ? "🕐 الوقت"
                   : "🕐 Time",
+
               value:
                 warningTime,
-              inline: false
+
+              inline:
+                false
             },
+
             {
               name:
                 language === "ar"
                   ? "👮 المشرف"
                   : "👮 Moderator",
+
               value:
                 `<@${interaction.user.id}>`,
-              inline: true
+
+              inline:
+                true
             },
+
             {
               name:
                 language === "ar"
                   ? "🔢 رقم التحذير"
                   : "🔢 Warning #",
+
               value:
                 `\`${warningNumber}\``,
-              inline: true
+
+              inline:
+                true
             }
+
           )
           .setFooter({
             text:
@@ -2149,7 +3239,9 @@ client.on(
           .setTimestamp();
 
       await interaction.reply({
-        embeds: [embed]
+        embeds: [
+          embed
+        ]
       });
 
       return;
@@ -2174,16 +3266,14 @@ client.on(
           "warning_number"
         );
 
-      // ----------------------------------------------
-      // GET ALL WARNINGS FOR USER
-      // ----------------------------------------------
-
       const {
         data,
         error
       } =
         await supabase
-          .from("warnings")
+          .from(
+            "warnings"
+          )
           .select(
             "id, user_id, username, reason, created_at, moderator_id"
           )
@@ -2198,7 +3288,8 @@ client.on(
           .order(
             "created_at",
             {
-              ascending: true
+              ascending:
+                true
             }
           );
 
@@ -2210,11 +3301,15 @@ client.on(
         );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ حدث خطأ أثناء جلب التحذيرات."
               : "❌ An error occurred while loading warnings.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
@@ -2226,11 +3321,15 @@ client.on(
       ) {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? `❌ **${user.username}** لا يملك أي تحذيرات.`
               : `❌ **${user.username}** has no warnings.`,
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
@@ -2251,25 +3350,28 @@ client.on(
       if (!warning) {
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? `❌ لا يوجد تحذير بالرقم **#${warningNumber}** لهذا العضو.\n📊 لديه حاليًا **${numberedWarnings.length}** تحذير.`
               : `❌ Warning **#${warningNumber}** does not exist for this member.\n📊 They currently have **${numberedWarnings.length}** warnings.`,
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
       }
 
-      // ----------------------------------------------
-      // DELETE EXACT WARNING
-      // ----------------------------------------------
-
       const {
-        error: deleteError
+        error:
+          deleteError
       } =
         await supabase
-          .from("warnings")
+          .from(
+            "warnings"
+          )
           .delete()
           .eq(
             "id",
@@ -2288,23 +3390,25 @@ client.on(
         );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ لم أتمكن من إزالة التحذير."
               : "❌ I couldn't remove the warning.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
       }
 
-      // ----------------------------------------------
-      // SUCCESS EMBED
-      // ----------------------------------------------
-
       const embed =
         new EmbedBuilder()
-          .setColor(0x2ECC71)
+          .setColor(
+            0x2ECC71
+          )
           .setTitle(
             language === "ar"
               ? "✅ تمت إزالة التحذير"
@@ -2316,29 +3420,39 @@ client.on(
             })
           )
           .addFields(
+
             {
               name:
                 language === "ar"
                   ? "👤 العضو"
                   : "👤 Member",
+
               value:
                 `${user.globalName || user.username} (@${user.username})`,
-              inline: false
+
+              inline:
+                false
             },
+
             {
               name:
                 language === "ar"
                   ? "🔢 رقم التحذير"
                   : "🔢 Warning Number",
+
               value:
                 `#${warning.warning_number}`,
-              inline: true
+
+              inline:
+                true
             },
+
             {
               name:
                 language === "ar"
                   ? "📝 سبب التحذير"
                   : "📝 Warning Reason",
+
               value:
                 warning.reason ||
                 (
@@ -2346,41 +3460,55 @@ client.on(
                     ? "بدون سبب"
                     : "No reason"
                 ),
-              inline: false
+
+              inline:
+                false
             },
+
             {
               name:
                 language === "ar"
                   ? "🕐 تاريخ التحذير"
                   : "🕐 Warning Date",
+
               value:
                 warning.created_at
                   ? `<t:${Math.floor(
                       new Date(
                         warning.created_at
-                      ).getTime() / 1000
+                      ).getTime() /
+                      1000
                     )}:F>`
                   : (
                       language === "ar"
                         ? "غير معروف"
                         : "Unknown"
                     ),
-              inline: false
+
+              inline:
+                false
             },
+
             {
               name:
                 language === "ar"
                   ? "👮 أزال التحذير"
                   : "👮 Removed By",
+
               value:
                 `<@${interaction.user.id}>`,
-              inline: true
+
+              inline:
+                true
             }
+
           )
           .setTimestamp();
 
       await interaction.reply({
-        embeds: [embed]
+        embeds: [
+          embed
+        ]
       });
 
       return;
@@ -2402,7 +3530,9 @@ client.on(
 
       let query =
         supabase
-          .from("warnings")
+          .from(
+            "warnings"
+          )
           .select(
             "id, user_id, username, reason, moderator_id, created_at"
           )
@@ -2413,15 +3543,14 @@ client.on(
           .order(
             "created_at",
             {
-              ascending: true
+              ascending:
+                true
             }
           );
 
-      // ----------------------------------------------
-      // IF USER WAS PROVIDED
-      // ----------------------------------------------
-
-      if (targetUser) {
+      if (
+        targetUser
+      ) {
 
         query =
           query.eq(
@@ -2445,11 +3574,15 @@ client.on(
         );
 
         await interaction.reply({
+
           content:
             language === "ar"
               ? "❌ لم أتمكن من جلب التحذيرات."
               : "❌ I couldn't load the warnings.",
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
@@ -2461,6 +3594,7 @@ client.on(
       ) {
 
         await interaction.reply({
+
           content:
             targetUser
               ? (
@@ -2473,7 +3607,10 @@ client.on(
                     ? "✅ لا توجد تحذيرات في هذا السيرفر."
                     : "✅ There are no warnings in this server."
                 ),
-          ephemeral: true
+
+          ephemeral:
+            true
+
         });
 
         return;
@@ -2491,22 +3628,31 @@ client.on(
       const page = 0;
 
       await interaction.reply({
+
         embeds: [
           createWarningsEmbed({
-            warnings: data,
+            warnings:
+              data,
+
             page,
+
             language,
+
             targetUser
           })
         ],
+
         components: [
           createWarningsButtons({
             ownerId:
               interaction.user.id,
+
             page,
+
             totalPages
           })
         ]
+
       });
 
       console.log(
@@ -2519,6 +3665,22 @@ client.on(
 
       return;
     }
+
+  }
+);
+
+// ==================================================
+// START DASHBOARD SERVER
+// ==================================================
+
+app.listen(
+  PORT,
+  "0.0.0.0",
+  () => {
+
+    console.log(
+      `🌐 Dashboard API running on port ${PORT}`
+    );
 
   }
 );
@@ -2550,55 +3712,63 @@ console.log(
 fetch(
   "https://discord.com/api/v10/gateway"
 )
-  .then(async response => {
+  .then(
+    async response => {
 
-    console.log(
-      "🌐 Discord API status:",
-      response.status
-    );
-
-    const text =
-      await response.text();
-
-    console.log(
-      "🌐 Discord API response:",
-      text
-    );
-
-    if (
-      response.status !== 200
-    ) {
-
-      throw new Error(
-        `Discord API returned HTTP ${response.status}: ${text}`
+      console.log(
+        "🌐 Discord API status:",
+        response.status
       );
+
+      const text =
+        await response.text();
+
+      console.log(
+        "🌐 Discord API response:",
+        text
+      );
+
+      if (
+        response.status !== 200
+      ) {
+
+        throw new Error(
+          `Discord API returned HTTP ${response.status}: ${text}`
+        );
+
+      }
+
+      console.log(
+        "🚀 Attempting Discord login..."
+      );
+
+      return client.login(
+        DISCORD_TOKEN
+      );
+
     }
+  )
+  .then(
+    () => {
 
-    console.log(
-      "🚀 Attempting Discord login..."
-    );
+      console.log(
+        "[SUCCESS] Discord login successful!"
+      );
 
-    return client.login(
-      DISCORD_TOKEN
-    );
-  })
-  .then(() => {
+    }
+  )
+  .catch(
+    error => {
 
-    console.log(
-      "[SUCCESS] Discord login successful!"
-    );
+      console.error(
+        "❌ Discord connection/login failed:"
+      );
 
-  })
-  .catch(error => {
+      console.error(
+        error
+      );
 
-    console.error(
-      "❌ Discord connection/login failed:"
-    );
+      process.exit(1);
 
-    console.error(
-      error
-    );
-
-    process.exit(1);
-
-  });
+    }
+  );
